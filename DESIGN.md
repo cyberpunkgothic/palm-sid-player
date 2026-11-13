@@ -1,16 +1,24 @@
 # SID Player for Palm OS 5 (design notes)
 
+**Status 2026-11-13: VERSION 1.0 RELEASED**, https://github.com/cyberpunkgothic/palm-sid-player
+(public; release v1.0 has both .prc files).  Tested on the real Palm TX (tests/TX_CHECKLIST.md: all
+passed; Speed Test under 20% with the filter on, under 10% off), the TX simulator, and CloudpilotEmu
+(Tungsten E2, E3v2, deNVFS E2, rePalm; an OS 4 m515 refuses politely).  The device fixes on the way
+are under "Device compatibility" below.  The repository leaves out the user's tunes (tests/tunes/user,
+including the extra local render cases in local_cases.json) and anything about the Casio (CASIO.md,
+excluded through .git/info/exclude).  The milestone notes below are the history.
+
 Status: milestone 1 built 2026-11-07: tools\pc_build.bat (MSVC, 32-bit) builds the unchanged
 libsidplay 1.36.60 + src\pc\sid2wav.cpp -> build\pc\sid2wav.exe; test WAVs in build\wav
 (44.1 kHz 16-bit mono, 8580 waveforms, filter on, tune's clock: the user's SIDPLAY/w settings).
 Renders are repeatable byte for byte.  User compared with SIDPLAY/w (tunes from the user's collection,
 including Elvira - The Arcade Game track 1): "sounds identical".  MILESTONE 1 DONE.
 
-Milestone 3 (Palm app) BUILT 2026-11-07, works in the TX simulator; waiting for the real TX:
+Milestone 3 (Palm app) BUILT 2026-11-07, works in the TX simulator (real TX: see the status above):
 - TWO APPS, kept separately (decided 2026-11-08), for people who don't want the skin or whose device
   can't show it (it needs 16-bit colour and the 320 px screen):
   - src/palm_std: "SID Player", creator 'SdPl', the standard Palm OS interface (list, buttons, info
-    text) -> build/palm/SIDPlayer.prc.  Started from backups/2026-11-07_standard-ui.
+    text) -> build/palm/SIDPlayer.prc.  Started from the first standard-UI build (2026-11-07).
   - src/palm_c64: "SID Player DX", creator 'SdPX', the C64-style skin -> build/palm/SIDPlayerDX.prc.
   Each has main.c (68k app), sidplayer.rcp, resource.h, Makefile (WSL, Dmitry's GCC 9.1 + PilRC 3.3),
   linker.lkr; intermediates in build/palm_std and build/palm_c64.  Both use the same sound core

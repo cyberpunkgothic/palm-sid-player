@@ -5,15 +5,9 @@ tests/tunes/user/
 # local backups of earlier builds
 backups/
 __pycache__/
-# kept locally, not published: the older libsidplay versions (only compared during preparation),
-# the design mock-ups, and the simulator helper scripts
-vendor/src/libsidplay-1.36.47.orig/
-vendor/src/libsidplay-1.36.57/
-vendor/src/libsidplay-1.36.59/
+# kept locally, not published: the older libsidplay tarballs (only compared before choosing 1.36.60)
 vendor/tarballs/libsidplay_1.36.47.orig.tar.gz
 vendor/tarballs/libsidplay_1.36.57.tgz
 vendor/tarballs/libsidplay_1.36.59.orig.tar.gz
 vendor/tarballs/MD5SUMS
-design/
-tools/sim/
 vendor/tarballs/SHA1SUMS.all
