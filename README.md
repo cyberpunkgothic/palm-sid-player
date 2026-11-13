@@ -94,6 +94,8 @@ and GDB (testing the ARM core on the PC), and Python (build and test scripts).
   GPL v3): the Palm emulator for the web that the apps were tested in as a Tungsten E2, the
   widescreen "E3" and rePalm. It found the Tungsten E2 and rePalm crashes fixed for 1.0, and its
   rePalm emulation reports crashes with the processor's registers, which pinpointed one of them.
+  Christian (DirtyHairy) also went through a test build's code on the PalmDB Discord and found the
+  64-bit loads and stores (LDRD/STRD) behind the rePalm faults.
 - **Dmitry Grinberg**: uARM, the ARM emulator CloudpilotEmu's Palm OS 5 emulation is built on;
   rePalm; and the widescreen "Tungsten E3" ROM.
 - **PalmDB** (<https://palmdb.net>): its archive of device ROMs, and the people on its Discord who
