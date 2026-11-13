@@ -98,6 +98,6 @@ and GDB (testing the ARM core on the PC), and Python (build and test scripts).
   64-bit loads and stores (LDRD/STRD) behind the rePalm faults.
 - **Dmitry Grinberg**: uARM, the ARM emulator CloudpilotEmu's Palm OS 5 emulation is built on;
   rePalm; and the widescreen "Tungsten E3" ROM. Dmitry (dmitrygr) also suggested, on the PalmDB
-  Discord, building the sound core for ARMv4T, which makes it run on the older ARMv4T handhelds too.
+  Discord, building the sound core for ARMv4T, so it can also run on the older ARMv4T handhelds.
 - **PalmDB** (<https://palmdb.net>): its archive of device ROMs, and the people on its Discord who
   tried the first release and reported the Tungsten E2 crash.
