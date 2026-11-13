@@ -1,0 +1,20 @@
+/* SID Player for Palm OS 5: resource IDs. */
+#define MainForm            1000
+#define MainMenuBar         1100
+#define MenuAbout           1101
+#define ErrorAlert          1200
+#define AboutForm           1300
+#define AboutOKButton       1301
+#define MenuSettings        1102
+#define SettingsForm        1400
+#define SetModel6581        1401
+#define SetModel8580        1402
+#define SetFilterCheck      1403
+#define SetClockAuto        1404
+#define SetClockPAL         1405
+#define SetClockNTSC        1406
+#define SetOKButton         1407
+#define SetCancelButton     1408
+#define MenuSpeed           1103
+#define SpeedForm           1500
+#define InfoAlert           1600

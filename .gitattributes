@@ -1,0 +1,14 @@
+# Text files are stored with LF line endings; these keep their own on checkout:
+* text=auto
+*.sh   text eol=lf
+*.py   text eol=lf
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+MANUAL.txt text eol=crlf
+# Binaries: never converted
+*.prc  binary
+*.sid  binary
+*.png  binary
+*.bmp  binary
+*.gz   binary
+*.bz2  binary
