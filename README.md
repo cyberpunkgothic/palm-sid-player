@@ -32,17 +32,23 @@ Plan and decisions: `DESIGN.md`.
 
 | Path | What |
 |---|---|
-| `vendor/` | libsidplay 1.36.60, its checked tarball and untouched source (the reference build); `VENDOR.md` has the notes |
-| `src/palm_std/` | the Palm OS 5 app with the standard Palm OS interface -> `build/palm/SIDPlayer.prc` |
-| `src/palm_c64/` | the same player with the C64-style skin, "SID Player DX" -> `build/palm/SIDPlayerDX.prc` |
-| | both built by `tools/palm_build.sh`; `run_sim.bat` starts the TX simulator |
-| `src/blob/` | the sound core as one relocatable ARM block (+ the simulator's `sidcore.dll`) |
+| `SIDPlayer.prc`, `SIDPlayerDX.prc` | the two apps, ready to install |
+| `src/palm_std/` | SID Player: the app with the standard Palm OS interface |
+| `src/palm_c64/` | SID Player DX: the same player with the C64-style screen |
+| `src/blob/` | the sound core as one relocatable ARM block (and, built from the same source, the simulator's `sidcore.dll`) |
 | `src/core/` | our copy of libsidplay 1.36.60 (changes marked "sid-player") |
-| `src/pc/` | `sid2wav.cpp` (render a tune to WAV) and the PC config headers |
-| `tools/` | `pc_build.bat` (MSVC, VS 2022 Build Tools -> `build/pc/sid2wav.exe`) and the build and test scripts |
-| `tests/` | `TX_CHECKLIST.md` (the device test plan), `test_render.py` (19 tunes checked byte for byte against the unchanged libsidplay), `settings_check.c` (settings changes; `tools/settings_check.bat`), `levels_probe.c` (DX's level meters) |
-| `tests/tunes/user/` | your own `.sid` files for the render test (not in the repository: put tunes there to run it) |
-| `build/` | build output (WAVs etc.) |
+| `src/pc/` | `sid2wav.cpp` (renders a tune to a WAV file) and the PC config headers |
+| `vendor/` | libsidplay 1.36.60's checked tarball and untouched source (the reference the tests compare against); `VENDOR.md` has the notes |
+| `tools/` | the build scripts: `palm_build.sh` (both apps and the sound core), `pc_build.bat` (the PC builds, MSVC), and the tools they use |
+| `tests/` | `TX_CHECKLIST.md` (the device test plan), `test_render.py` (renders tunes and checks them byte for byte against the unchanged libsidplay), `settings_check.c` (settings changes; `tools/settings_check.bat`), `levels_probe.c` (DX's level meters) |
+| `run_sim.bat` | starts the Palm TX simulator with the apps (the simulator is PalmSource's and isn't included) |
+
+Not in the repository, made on your own machine:
+- `build/`: everything the build scripts produce (`tools/palm_build.sh` puts the apps in
+  `build/palm/` and copies them to the top folder).
+- `tests/tunes/user/`: tunes for `tests/test_render.py`, which aren't ours to publish. The test
+  names twelve tunes from the High Voltage SID Collection (see `CASES` in the script; their reference
+  checksums are in `tests/golden.json`) and skips any you don't have.
 
 `sid2wav in.sid out.wav [-s N] [-t SEC] [-r HZ] [-6581] [-nofilter] [-pal|-ntsc] [-info]`
 (defaults: start song, 120 s, 44100 Hz, 8580 waveforms, filter on, the tune's clock).
