@@ -5,8 +5,14 @@ with SIDPLAY/w's "original" sound (libsidplay 1). Two versions: **SID Player** (
 interface) and **SID Player DX** (a C64-style screen). GPL v2 or later (see `COPYING`), same as
 libsidplay 1.
 
-**Version 1.0** (2026-11-13). The apps are `SIDPlayer.prc` and `SIDPlayerDX.prc` (also attached to the
+**Version 1.01** (2026-11-13). The apps are `SIDPlayer.prc` and `SIDPlayerDX.prc` (also attached to the
 GitHub release).
+
+**New in 1.01:** a **Volume** slider in Settings, 0% to 200% in steps of 5% (100%, the default, is how
+1.0 played). The handheld's own volume settings don't reach a sound stream, and libsidplay leaves
+room for four voices, so tunes played quietly on the speaker; now you can turn them up, or down for
+earbuds. The volume changes as you slide it, is saved with the other settings, and doesn't restart the
+song. Settings from 1.0 are kept.
 
 ## Using it
 

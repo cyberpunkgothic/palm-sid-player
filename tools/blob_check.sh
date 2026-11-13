@@ -2,7 +2,7 @@
 # Run in WSL Ubuntu: build tests/blob_harness.c for ARM Linux and use it to run the relocatable core
 # (build/blob/sidcore.bin, made on Windows by tools/blob_build.sh) under qemu-arm.
 #   tools/blob_check.sh                           build the harness only
-#   tools/blob_check.sh tune.sid out.wav [opts]   render (opts: -s N -t SEC -r HZ)
+#   tools/blob_check.sh tune.sid out.wav [opts]   render (opts: -s N -t SEC -r HZ -v VOL, 256 = 100%)
 set -e
 cd "$(dirname "$0")/.."
 mkdir -p build/arm

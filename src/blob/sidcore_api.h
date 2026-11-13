@@ -37,8 +37,10 @@ enum {
 	                     (for tests; the player uses the stream callback instead).  Stop the
 	                     stream before SC_LOAD, SC_START, SC_CONFIG and SC_SHUTDOWN. */
 	SC_SHUTDOWN = 6,  /* free everything; a0 = peak arena use in bytes                      -> 0    */
-	SC_LEVELS = 7     /* meters, voices 1-3, since the last call: a0..a2 = peak output 0..255,
+	SC_LEVELS = 7,    /* meters, voices 1-3, since the last call: a0..a2 = peak output 0..255,
 	                     a3..a5 = 1 if a new note started (gate on or pitch jump)          -> 0 ok */
+	SC_VOLUME = 8     /* a0 = the volume, 256 = as libsidplay mixes it (most tunes peak near half
+	                     of full scale); louder clips.  Can be sent while the stream runs.  -> 0 ok */
 };
 
 /* Results other than 0 */

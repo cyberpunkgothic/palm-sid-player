@@ -1,12 +1,28 @@
 # SID Player for Palm OS 5 (design notes)
 
-**Status 2026-11-13: VERSION 1.0 RELEASED**, https://github.com/cyberpunkgothic/palm-sid-player
-(public; release v1.0 has both .prc files).  Tested on the real Palm TX (tests/TX_CHECKLIST.md: all
+**Status 2026-11-13: VERSION 1.01 RELEASED** (1.0 the same day), https://github.com/cyberpunkgothic/palm-sid-player
+(public; releases v1.0 and v1.01 have both .prc files).  Tested on the real Palm TX (tests/TX_CHECKLIST.md: all
 passed; Speed Test under 20% with the filter on, under 10% off), the TX simulator, and CloudpilotEmu
 (Tungsten E2, E3v2, deNVFS E2, rePalm; an OS 4 m515 refuses politely).  The device fixes on the way
 are under "Device compatibility" below.  The repository leaves out the user's tunes (tests/tunes/user,
 including the extra local render cases in local_cases.json) and anything about the Casio (CASIO.md,
 excluded through .git/info/exclude).  The milestone notes below are the history.
+
+**Version 1.01 (2026-11-13): a volume setting.**  The user found the TX quiet, and the
+system volume controls don't reach it: a sound stream plays at unity gain unless the app calls
+SndStreamSetVolume (with sndGameVolume etc. it would follow Preferences).  libsidplay's mono mix leaves
+room for four voices, so tunes peak at about half of full scale (measured: 35-55%, Supremacy 19%).
+Now Settings has a Volume slider, 0-200% in steps of 5% (the user, on the TX: 200% is a comfortable
+most on the speaker, 400% was uncomfortably loud and clipped, 100% too loud on earbuds).  Its track
+and thumb are our own bitmaps (tools/gen_slider.py; the stock track's marks didn't match): long marks
+at 0/100/200%, short every 25%, placed by Palm OS's thumb formula (left = value * (width - thumb
+width) / max: a 72 px track, 8 px thumb, a mark every 8 px).  Prefs version 3 (v1.0's version 1 is
+read and kept; the 10-400% test build's version 2 is converted), applied in the core after the mixer (SC_VOLUME, 256 = 100%, hard clip at full scale;
+256 leaves the samples untouched, so test_render.py stays 19/19).  It changes live while the slider
+moves (it's a single word the stream callback reads), Cancel restores it, and a volume change alone
+doesn't restart the song.  tests/blob_harness.c takes -v VOL; checked under qemu: 200% = x2 exactly,
+400% = x4 with clipping (Elite: 3% of samples).  Both apps; MANUAL.md/.txt updated.  Tested by the user
+on the TX (the scale lines up, the volume is saved between sessions), released as v1.01.
 
 Status: milestone 1 built 2026-11-07: tools\pc_build.bat (MSVC, 32-bit) builds the unchanged
 libsidplay 1.36.60 + src\pc\sid2wav.cpp -> build\pc\sid2wav.exe; test WAVs in build\wav

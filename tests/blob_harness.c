@@ -37,13 +37,14 @@ static void put32(FILE* f, unsigned long v) { put16(f, v & 0xffff); put16(f, (v 
 
 int main(int argc, char** argv)
 {
-	if (argc < 4) { fprintf(stderr, "usage: blob_harness sidcore.bin tune.sid out.wav [-s N] [-t SEC] [-r HZ]\n"); return 2; }
-	int song = 0, seconds = 120, rate = 44100;
+	if (argc < 4) { fprintf(stderr, "usage: blob_harness sidcore.bin tune.sid out.wav [-s N] [-t SEC] [-r HZ] [-v VOL (256 = 100%)]\n"); return 2; }
+	int song = 0, seconds = 120, rate = 44100, vol = -1;
 	verbose = getenv("BLOB_VERBOSE") != 0;
 	for (int i = 4; i + 1 < argc; i += 2) {
 		if (!strcmp(argv[i], "-s")) song = atoi(argv[i + 1]);
 		else if (!strcmp(argv[i], "-t")) seconds = atoi(argv[i + 1]);
 		else if (!strcmp(argv[i], "-r")) rate = atoi(argv[i + 1]);
+		else if (!strcmp(argv[i], "-v")) vol = atoi(argv[i + 1]);
 	}
 
 	/* load and relocate the core */
@@ -74,6 +75,11 @@ int main(int argc, char** argv)
 	memset(&c, 0, sizeof c);
 	c.cmd = SC_CONFIG; c.a[0] = rate; c.a[1] = 0; c.a[2] = 1; c.a[3] = 0;
 	if (call(&c)) { fprintf(stderr, "config failed: %lu\n", c.result); return 1; }
+	if (vol >= 0) {                       /* SC_VOLUME (the settings' volume) */
+		memset(&c, 0, sizeof c);
+		c.cmd = SC_VOLUME; c.a[0] = vol;
+		if (call(&c)) { fprintf(stderr, "volume failed: %lu\n", c.result); return 1; }
+	}
 
 	long tuneLen;
 	void* tuneData = readFile(argv[2], &tuneLen);

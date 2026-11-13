@@ -1,6 +1,6 @@
 #include "resource.h"
 
-VERSION ID 1 "1.0"
+VERSION ID 1 "1.01"
 APPLICATIONICONNAME ID 1000 "SID Player"
 
 // Launcher icons (the C= logo, drawn by tools/gen_icon.py): 1-bit and 8-bit, single and double density
@@ -59,7 +59,7 @@ MODAL
 USABLE
 BEGIN
 	TITLE "About SID Player"
-	LABEL "SID Player 1.0" AUTOID AT (CENTER 16) FONT 1
+	LABEL "SID Player 1.01" AUTOID AT (CENTER 16) FONT 1
 	LABEL "C64 music with libsidplay 1.36.60" AUTOID AT (4 34)
 	LABEL "by Michael Schwendt (SIDPLAY's" AUTOID AT (4 45)
 	LABEL "original engine). GPL v2 or later." AUTOID AT (4 56)
@@ -68,8 +68,22 @@ BEGIN
 	BUTTON "OK" ID AboutOKButton AT (CENTER 103 36 12)
 END
 
+// The volume slider's track and thumb (tools/gen_slider.py): its scale 0-200%, a long mark every
+// 100%, a short one every 25%
+BITMAPFAMILYEX ID SliderBgBitmap
+BEGIN
+	BITMAP "slider_bg.bmp" BPP 8
+	BITMAP "slider_bg2.bmp" BPP 8 DENSITY 2
+END
+
+BITMAPFAMILYEX ID SliderThumbBitmap
+BEGIN
+	BITMAP "slider_th.bmp" BPP 8 TRANSPARENT 255 0 255
+	BITMAP "slider_th2.bmp" BPP 8 TRANSPARENT 255 0 255 DENSITY 2
+END
+
 // Settings: own loop like the About box (see showSettings in main.c)
-FORM ID SettingsForm AT (2 26 156 132)
+FORM ID SettingsForm AT (2 2 156 156)
 MODAL
 USABLE
 DEFAULTBTNID SetCancelButton
@@ -86,8 +100,12 @@ BEGIN
 	PUSHBUTTON "NTSC" ID SetClockNTSC AT (PREVRIGHT+1 PREVTOP 30 12) GROUP 2
 	LABEL "Auto: the tune's own clock," AUTOID AT (4 72)
 	LABEL "or PAL if it doesn't say." AUTOID AT (4 83)
-	LABEL "OK restarts the current song." AUTOID AT (4 98)
-	BUTTON "OK" ID SetOKButton AT (4 116 36 12)
+	LABEL "Volume" AUTOID AT (4 100) FONT 1
+	SLIDER ID SetVolumeSlider AT (52 98 72 15) FEEDBACK MIN 0 MAX 40 VALUE 20 PAGESIZE 5 THUMBID SliderThumbBitmap BACKGROUNDID SliderBgBitmap
+	LABEL "200%" ID SetVolumeLabel AT (127 100)
+	LABEL "Chip, filter or clock changed:" AUTOID AT (4 116)
+	LABEL "OK restarts the current song." AUTOID AT (4 127)
+	BUTTON "OK" ID SetOKButton AT (4 140 36 12)
 	BUTTON "Cancel" ID SetCancelButton AT (PREVRIGHT+5 PREVTOP 36 12)
 END
 

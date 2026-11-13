@@ -31,9 +31,15 @@
 #define chunkFlagsLarge (memNewChunkFlagNonMovable | 0x1000)
 
 /* Settings, saved with PrefSetAppPreferences.  clock: 0 = the tune's own (PAL if it doesn't say),
-   1 = force PAL, 2 = force NTSC.  The defaults are the user's SIDPLAY/w settings. */
-typedef struct { UInt8 version, chip6581, filter, clock; } SidPrefs;
-#define PREFS_VERSION 1
+   1 = force PAL, 2 = force NTSC.  volume: in steps of 5%, 0-VOL_MAX (20 = 100%, libsidplay's own
+   level, as v1.0 played; 200% is the most: on the TX's speaker more was uncomfortably loud and
+   clipped, and 100% was too loud on earbuds).  The defaults are the user's SIDPLAY/w settings.
+   (Version 1, v1.0, had no volume: its settings are kept.  Version 2, a test build, counted in tens
+   of per cent up to 400%.) */
+typedef struct { UInt8 version, chip6581, filter, clock, volume, pad; } SidPrefs;
+#define PREFS_VERSION 3
+#define VOL_MAX 40
+#define VOL_DEFAULT 20
 
 typedef struct {
 	/* the core */
@@ -217,9 +223,23 @@ static void loadPrefs(Globals* g)
 	g->prefs.chip6581 = 0;                 /* 8580 waveforms */
 	g->prefs.filter = 1;
 	g->prefs.clock = 0;
-	if (PrefGetAppPreferences(appCreator, 0, &p, &size, true) != noPreferenceFound &&
-	    size == sizeof p && p.version == PREFS_VERSION)
+	g->prefs.volume = VOL_DEFAULT;
+	g->prefs.pad = 0;
+	if (PrefGetAppPreferences(appCreator, 0, &p, &size, true) == noPreferenceFound)
+		return;
+	if (size == sizeof p && p.version == PREFS_VERSION)
 		g->prefs = p;
+	else if (size == sizeof p && p.version == 2) {  /* the test build's: tens of per cent */
+		g->prefs = p;
+		g->prefs.version = PREFS_VERSION;
+		g->prefs.volume = p.volume * 2 > VOL_MAX ? VOL_MAX : p.volume * 2;
+	} else if (size == 4 && p.version == 1) {     /* v1.0's: the same, no volume */
+		g->prefs.chip6581 = p.chip6581;
+		g->prefs.filter = p.filter;
+		g->prefs.clock = p.clock;
+	}
+	if (g->prefs.volume > VOL_MAX)
+		g->prefs.volume = VOL_DEFAULT;
 }
 
 static void savePrefs(Globals* g)
@@ -390,15 +410,25 @@ static void cleanDataCache(const UInt8* other)
 	(void)x;
 }
 
+/* The volume to the core (it can change while the stream runs): in steps of 5%. */
+static void setVolume(Globals* g, UInt8 vol)
+{
+	UInt32 a[6] = { 0 };
+	a[0] = (UInt32)vol * 256 / 20;
+	coreCall(g, SC_VOLUME, a, 0);
+}
+
 /* Send the settings to the core (the stream must be stopped). */
 static UInt32 configCore(Globals* g)
 {
-	UInt32 a[6] = { 0 };
+	UInt32 a[6] = { 0 }, r;
 	a[0] = SAMPLE_RATE;
 	a[1] = g->prefs.chip6581 ? 1 : 0;
 	a[2] = g->prefs.filter ? 1 : 0;
 	a[3] = g->prefs.clock;
-	return coreCall(g, SC_CONFIG, a, 0);
+	r = coreCall(g, SC_CONFIG, a, 0);
+	setVolume(g, g->prefs.volume);
+	return r;
 }
 
 static Boolean startCore(Globals* g)
@@ -815,20 +845,39 @@ static UInt16 groupChoice(FormType* frm, UInt8 group)
 	return idx == frmNoSelectedControl ? 0 : FrmGetObjectId(frm, idx);
 }
 
+/* The volume's label: "100%" */
+static void volumeLabel(FormType* frm, UInt8 vol, Boolean draw)
+{
+	char t[8];
+	UInt16 n;
+	StrIToA(t, (Int32)vol * 5);
+	n = StrLen(t);
+	t[n] = '%';
+	t[n + 1] = 0;
+	if (draw) FrmHideObject(frm, FrmGetObjectIndex(frm, SetVolumeLabel));
+	FrmCopyLabel(frm, SetVolumeLabel, t);
+	if (draw) FrmShowObject(frm, FrmGetObjectIndex(frm, SetVolumeLabel));
+}
+
 /* The Settings box, with its own loop like the About box.  Returns true if the settings changed
-   (they are then saved and applied). */
+   (they are then saved and applied).  The volume changes as the slider moves (Cancel puts it back);
+   on its own it's saved without restarting the song. */
 static Boolean showSettings(Globals* g)
 {
 	FormType* prev = FrmGetActiveForm();
 	FormType* frm = FrmInitForm(SettingsForm);
 	ControlType* filter = (ControlType*)FrmGetObjectPtr(frm, FrmGetObjectIndex(frm, SetFilterCheck));
+	ControlType* slider = (ControlType*)FrmGetObjectPtr(frm, FrmGetObjectIndex(frm, SetVolumeSlider));
 	SidPrefs p = g->prefs;
 	EventType e;
 	UInt16 pressed = 0, id;
+	UInt8 vol = p.volume;
 
 	FrmSetControlGroupSelection(frm, 1, p.chip6581 ? SetModel6581 : SetModel8580);
 	FrmSetControlGroupSelection(frm, 2, p.clock == 1 ? SetClockPAL : p.clock == 2 ? SetClockNTSC : SetClockAuto);
 	CtlSetValue(filter, p.filter);
+	CtlSetValue(slider, vol);
+	volumeLabel(frm, vol, false);
 	FrmSetActiveForm(frm);
 	FrmDrawForm(frm);
 	while (!pressed) {
@@ -840,6 +889,15 @@ static Boolean showSettings(Globals* g)
 		if (e.eType == ctlSelectEvent &&
 		    (e.data.ctlSelect.controlID == SetOKButton || e.data.ctlSelect.controlID == SetCancelButton))
 			pressed = e.data.ctlSelect.controlID;
+		else if ((e.eType == ctlRepeatEvent && e.data.ctlRepeat.controlID == SetVolumeSlider) ||
+		         (e.eType == ctlSelectEvent && e.data.ctlSelect.controlID == SetVolumeSlider)) {
+			FrmHandleEvent(frm, &e);             /* (the slider moves, then its value is read) */
+			if ((UInt8)CtlGetValue(slider) != vol) {
+				vol = (UInt8)CtlGetValue(slider);
+				volumeLabel(frm, vol, true);
+				if (g->coreReady) setVolume(g, vol);
+			}
+		}
 		else if (e.eType == appStopEvent) {
 			EvtAddEventToQueue(&e);              /* leave the app: let the main loop see it too */
 			pressed = SetCancelButton;
@@ -851,13 +909,23 @@ static Boolean showSettings(Globals* g)
 		id = groupChoice(frm, 2);
 		p.clock = id == SetClockPAL ? 1 : id == SetClockNTSC ? 2 : 0;
 		p.filter = CtlGetValue(filter) ? 1 : 0;
+		p.volume = vol;
 	}
 	FrmEraseForm(frm);
 	FrmDeleteForm(frm);
 	FrmSetActiveForm(prev);
-	if (pressed != SetOKButton ||
-	    (p.chip6581 == g->prefs.chip6581 && p.filter == g->prefs.filter && p.clock == g->prefs.clock))
+	if (pressed != SetOKButton) {
+		if (vol != g->prefs.volume && g->coreReady)
+			setVolume(g, g->prefs.volume);   /* (Cancel: as it was) */
 		return false;
+	}
+	if (p.chip6581 == g->prefs.chip6581 && p.filter == g->prefs.filter && p.clock == g->prefs.clock) {
+		if (p.volume != g->prefs.volume) {   /* (only the volume: already playing at it) */
+			g->prefs.volume = p.volume;
+			savePrefs(g);
+		}
+		return false;
+	}
 	g->prefs = p;
 	savePrefs(g);
 	applySettings(g);

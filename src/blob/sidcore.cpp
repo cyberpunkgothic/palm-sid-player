@@ -146,6 +146,22 @@ static emuEngine* engine = 0;
 static sidTune* tune = 0;
 static bool initDone = false;
 static volatile bool playing = false;
+static volatile long volume = 256;      // SC_VOLUME: 256 = libsidplay's own level
+
+// The volume, after the mixer: libsidplay leaves room for four voices, so most tunes peak near half
+// of full scale and sound quiet on a handheld's speaker.  Louder than that clips (hard, at full
+// scale).  256 leaves the samples untouched (the render tests' checksums still hold).
+static void applyVolume(void* buffer, unsigned long samples)
+{
+	long v = volume;
+	if (v == 256)
+		return;
+	short* s = (short*)buffer;
+	for (unsigned long i = 0; i < samples; i++) {
+		long x = ((long)s[i] * v) >> 8;
+		s[i] = (short)(x > 32767 ? 32767 : x < -32768 ? -32768 : x);
+	}
+}
 
 // Sound Manager stream callback (SndStreamCreate with armNative = true): called from the sound
 // thread for each buffer.  Arguments are native (no byte swapping).  The app stops the stream
@@ -157,9 +173,10 @@ long sidcoreStream(void* userData, unsigned long channel, void* buffer, unsigned
 extern "C" long sidcoreStreamMain(void* userData, unsigned long channel, void* buffer, unsigned long frames)
 #endif
 {
-	if (playing && engine && tune)
+	if (playing && engine && tune) {
 		sidEmuFillBuffer(*engine, *tune, buffer, (udword)(frames * 2));
-	else
+		applyVolume(buffer, frames);
+	} else
 		memset(buffer, 0, frames * 2);
 	return 0;
 }
@@ -238,6 +255,11 @@ static unsigned long command(SidCoreCall* c)
 	case SC_FILL:
 		if (!engine || !tune) return SC_ERR_STATE;
 		sidEmuFillBuffer(*engine, *tune, (void*)c->a[0], (udword)c->a[1]);
+		applyVolume((void*)c->a[0], c->a[1] / 2);
+		return 0;
+
+	case SC_VOLUME:
+		volume = (long)(c->a[0] > 4096 ? 4096 : c->a[0]);
 		return 0;
 
 	case SC_LEVELS: {

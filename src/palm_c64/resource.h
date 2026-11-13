@@ -15,6 +15,10 @@
 #define SetClockNTSC        1406
 #define SetOKButton         1407
 #define SetCancelButton     1408
+#define SetVolumeSlider     1409
+#define SetVolumeLabel      1410
+#define SliderBgBitmap      1411
+#define SliderThumbBitmap   1412
 #define MenuSpeed           1103
 #define SpeedForm           1500
 #define InfoAlert           1600

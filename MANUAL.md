@@ -1,6 +1,6 @@
 # SID Player for Palm OS 5 — User Manual
 
-*Version 1.0*
+*Version 1.01*
 
 SID Player plays Commodore 64 music (SID tunes) on a Palm OS 5 handheld. It uses libsidplay 1, the engine behind SIDPLAY/w's "original" sound, so tunes sound the way they did in SIDPLAY/w rather than the way modern reSID-based players render them.
 
@@ -68,7 +68,7 @@ The DX screen is laid out like a C64 directory listing:
 
 | Panel | What it shows |
 |---|---|
-| **Title line** | `*** SID PLAYER DX V1.0 ***` and the number of tunes on the card |
+| **Title line** | `*** SID PLAYER DX V1.01 ***` and the number of tunes on the card |
 | **NOW PLAYING** | Title, author and copyright; **SONG N/M** and the time played. Before you choose anything it says *TAP A TUNE BELOW TO PLAY IT*. |
 | **Buttons** | Play/pause, **<<** and **>>** (previous and next song in the file) |
 | **VOICES** | One level bar for each of the SID chip's three voices. A bar jumps to full when its voice starts a note, then settles back to the voice's loudness. Shown only on the tall screen (see section 5). |
@@ -104,8 +104,9 @@ The DX screen is laid out like a C64 directory listing:
 | **SID chip** | **6581** or **8580** (default 8580) | Which version of the C64's sound chip to imitate. In libsidplay 1 this only changes how two waveforms played together sound, so most tunes sound the same either way. A few, which use that trick, differ. |
 | **Filter** | On (default) or off | Whether the SID chip's filter is imitated. Tunes are written for it, so leave it on unless you're short of speed (see section 6). Off makes many tunes brighter or harsher. |
 | **Clock** | **Auto** (default), **PAL** or **NTSC** | The speed of the C64 the tune was written for. *Auto* uses the speed the tune asks for, or PAL if it doesn't say. PAL machines (Europe) and NTSC machines (America) ran at slightly different speeds and pitches, and tunes were written for one or the other: forcing the wrong one makes a tune play faster or slower. |
+| **Volume** | A slider, **0%** to **200%** in steps of 5% (default 100%) | How loud the music plays. It changes as you move the slider, so you can set it by ear. The long marks under the slider are 0, 100 and 200%; the short ones are every 25%. 100% is libsidplay's own level, which leaves room for four voices: on earbuds you'll probably want less, on the speaker more. Most tunes stay clean up to 200%. The handheld's own volume settings in Preferences don't affect SID Player. |
 
-Tap **OK** to keep the changes or **Cancel** to leave them as they were. **OK restarts the current song from the beginning** with the new settings. The settings are saved and used next time; SID Player and SID Player DX each keep their own.
+Tap **OK** to keep the changes or **Cancel** to leave them as they were (Cancel also puts the volume back). If you changed the chip, the filter or the clock, **OK restarts the current song from the beginning** with the new settings; a new volume alone carries on without a restart. The settings are saved and used next time; SID Player and SID Player DX each keep their own.
 
 ## 5. Screen sizes
 

@@ -26,7 +26,7 @@ INCS     = -isystem$(SDK) -isystem$(SDK)/Core -isystem$(SDK)/Core/Hardware -isys
            -isystem$(SDK)/Core/UI -isystem$(SDK)/Dynamic -isystem$(SDK)/Libraries \
            -isystem$(SDK)/Libraries/PalmOSGlue -isystem$(SDK)/Extensions/ExpansionMgr
 
-$(SHARED)/$(APP).prc: $(OUT)/code0001.bin sidplayer.rcp resource.h $(SHARED)/core.rcp $(OUT)/icon_lg_8.bmp
+$(SHARED)/$(APP).prc: $(OUT)/code0001.bin sidplayer.rcp resource.h $(SHARED)/core.rcp $(OUT)/icon_lg_8.bmp $(OUT)/slider_bg.bmp
 	cp $(SHARED)/arm*.bin resource.h $(OUT)/
 	cat sidplayer.rcp $(SHARED)/core.rcp > $(OUT)/all.rcp
 	cd $(OUT) && $(PILRC) -q -ro -o $(APP).prc -creator $(CREATOR) -type appl -name "$(NAME)" all.rcp
@@ -34,6 +34,9 @@ $(SHARED)/$(APP).prc: $(OUT)/code0001.bin sidplayer.rcp resource.h $(SHARED)/cor
 
 $(OUT)/icon_lg_8.bmp: ../../tools/gen_icon.py
 	python3 ../../tools/gen_icon.py $(OUT)
+
+$(OUT)/slider_bg.bmp: ../../tools/gen_slider.py ../../tools/gen_icon.py
+	python3 ../../tools/gen_slider.py $(OUT)
 
 $(OUT)/code0001.bin: $(OUT)/main.elf
 	@# Palm OS loads the code anywhere: an absolute jsr/jmp into it (as libgcc's helpers do) would
