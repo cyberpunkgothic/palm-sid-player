@@ -23,6 +23,8 @@ You can install either one or both: they don't share anything and can sit side b
 
 ## 1. Installing
 
+Download the apps from the releases page: <https://github.com/cyberpunkgothic/palm-sid-player/releases>.
+
 1. Install `SIDPlayer.prc`, `SIDPlayerDX.prc`, or both:
    - **with HotSync:** open the file with the Palm Desktop's Install Tool, then HotSync; or
    - **from a memory card:** copy the `.prc` files to the card's `PALM\Launcher` folder. They then appear in the launcher's card category and run from the card. The launcher's *Copy* command can copy them into the handheld if you prefer.
@@ -82,7 +84,7 @@ The DX screen is laid out like a C64 directory listing:
 | Key | Does |
 |---|---|
 | 5-way **up / down** | Move through the list one tune at a time |
-| **Page up / down** (where your handheld has them) | Move a page at a time |
+| **Page up / down buttons** (older handhelds without a 5-way) | Move a page at a time |
 | 5-way **left / right** | Previous / next song in the file |
 | 5-way **centre** | Play the selected tune |
 
@@ -124,6 +126,8 @@ The app makes 10 seconds of that song's music as fast as it can, then reports ho
 | 80–99% | *Borderline: it may stutter.* |
 | 100% or more | *Too slow to play in real time.* |
 
+On a Palm TX, every tune tried used under 20% with the filter on, and under 10% with it off.
+
 Busy tunes cost more than quiet ones, so try one of your busiest. If a tune stutters, turning the filter off in Settings makes playing cheaper; run the test again to see by how much. After the test the song starts again from the beginning; if it was paused, it stays paused.
 
 (In the Palm OS Simulator on a PC, the test measures the PC, and says so.)
@@ -145,11 +149,12 @@ Busy tunes cost more than quiet ones, so try one of your busiest. If a tune stut
 
 **Options menu > About** shows the version and credits.
 
-SID Player is free software under the **GNU General Public License, version 2 or later**, as is libsidplay 1, whose sound engine it uses. The source code is available with the program.
+SID Player is free software under the **GNU General Public License, version 2 or later**, as is libsidplay 1, whose sound engine it uses. The source code is at <https://github.com/cyberpunkgothic/palm-sid-player>.
 
 **Credits:**
 - **Michael Schwendt:** libsidplay 1, the engine of SIDPLAY's original sound.
 - **PalmSource and palmOne:** the Palm OS SDKs and simulators.
 - **The community members who keep the old Palm development tools working:** Dmitry Grinberg (GCC for Palm OS), Wes Cherry and Aaron Ardiri (PilRC), palm2000.com and Chuan Ji.
+- **Testing on other handhelds:** Christian Speckner (CloudpilotEmu, and finding a crash on rePalm), Dmitry Grinberg (uARM, rePalm, and the suggestion that lets the player run on older processors), and PalmDB and the people on its Discord who tried it out.
 
 The README has the full list. SID Player was made as a collaboration between its author and an AI (Claude, by Anthropic); the README describes how.
