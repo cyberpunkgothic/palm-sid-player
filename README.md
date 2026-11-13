@@ -88,9 +88,13 @@ Also: the xPack build of the Arm GNU Toolchain (GCC 15, for the ARM sound core),
 Studio Build Tools (the PC test builds and the simulator's copy of the core), WSL with Ubuntu, QEMU
 and GDB (testing the ARM core on the PC), and Python (build and test scripts).
 
-Testing on other handhelds:
-- **Christian Speckner**: CloudpilotEmu, the Palm emulator used to test the Tungsten E2 family and
-  rePalm.
-- **Dmitry Grinberg**: rePalm, and the widescreen "Tungsten E3" ROM.
-- **PalmDB** (palmdb.net): its archive of device ROMs, and the people on its Discord who tried the
-  first release, reported the Tungsten E2 crash and pointed out the ARMv4T problem.
+### Testing
+
+- **CloudpilotEmu** by **Christian Speckner** (<https://github.com/cloudpilot-emu/cloudpilot-emu>,
+  GPL v3): the Palm emulator for the web that the apps were tested in as a Tungsten E2, the
+  widescreen "E3" and rePalm. It found the Tungsten E2 and rePalm crashes fixed for 1.0, and its
+  rePalm emulation reports crashes with the processor's registers, which pinpointed one of them.
+- **Dmitry Grinberg**: uARM, the ARM emulator CloudpilotEmu's Palm OS 5 emulation is built on;
+  rePalm; and the widescreen "Tungsten E3" ROM.
+- **PalmDB** (<https://palmdb.net>): its archive of device ROMs, and the people on its Discord who
+  tried the first release, reported the Tungsten E2 crash and pointed out the ARMv4T problem.
