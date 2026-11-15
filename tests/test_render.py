@@ -121,7 +121,8 @@ def main():
         for tune, song in cases:
             out = os.path.join(tmp, "g.wav")
             if render("sid2wav_ref", tune, song, out):
-                ((tune, song) in local_cases and local or golden)[case_name(tune, song)] = sha1(out)
+                # (not "x and local or golden": local starts empty, and an empty dict is false)
+                (local if (tune, song) in local_cases else golden)[case_name(tune, song)] = sha1(out)
         with open(GOLDEN, "w") as f:
             json.dump(golden, f, indent=1, sort_keys=True)
         if local_cases:
