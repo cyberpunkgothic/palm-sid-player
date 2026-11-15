@@ -9,7 +9,6 @@
 #define SettingsForm        1400
 #define SetModel6581        1401
 #define SetModel8580        1402
-#define SetFilterCheck      1403
 #define SetClockAuto        1404
 #define SetClockPAL         1405
 #define SetClockNTSC        1406
@@ -17,6 +16,11 @@
 #define SetCancelButton     1408
 #define SetVolumeSlider     1409
 #define SetVolumeLabel      1410
+#define SetFilterOrig       1412
+#define SetFilterBright     1413
+#define SetModelAuto        1414
+#define SetEngineLib        1415
+#define SetEngineCRSID      1417
 #define SliderBgBitmap      1411
 #define SliderThumbBitmap   1412
 #define MenuSpeed           1103

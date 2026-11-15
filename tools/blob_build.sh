@@ -17,10 +17,16 @@ FLAGS="-O2 -march=armv4t -mtune=xscale -marm -mfloat-abi=soft -fsigned-char -fno
   -Isrc/blob/config -Isrc/core -Isrc/blob $BLOB_EXTRA"
 OBJS=""
 for f in src/blob/sidcore.cpp src/core/{6510_,6581_,eeconfig,envelope,mixing,player,psid_,samples,sidtune,mus_,fformat_}.cpp; do
-  o=$OUT/obj/$(basename ${f%.cpp}).o
+  o=$OUT/obj/$(basename ${f%.*}).o
   "$G/arm-none-eabi-g++.exe" $FLAGS -c $f -o $o
   OBJS="$OBJS $o"
 done
+# cRSID (src/crsid, C) for the cRSID engine (src/core/crsidengine.c, which includes all of it)
+CFLAGS="-O2 -march=armv4t -mtune=xscale -marm -mfloat-abi=soft -fsigned-char -ffunction-sections
+  -fdata-sections -w -Isrc/core -Isrc/crsid $BLOB_EXTRA"
+"$G/arm-none-eabi-gcc.exe" $CFLAGS -c src/core/crsidengine.c -o $OUT/obj/crsidengine.o
+OBJS="$OBJS $OUT/obj/crsidengine.o"
+# (The reSID 0.16 engine, no longer built, is in archive/resid-engine: README.md there.)
 "$G/arm-none-eabi-g++.exe" -march=armv4t -marm -mfloat-abi=soft -nostartfiles -nostdlib -static \
   -Wl,-T,src/blob/sidcore.ld -Wl,--gc-sections -Wl,--emit-relocs -Wl,--no-warn-rwx-segments \
   $OBJS -Wl,--start-group -lc_nano -lm -lgcc -Wl,--end-group -o $OUT/sidcore.elf

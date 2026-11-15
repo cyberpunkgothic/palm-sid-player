@@ -37,14 +37,19 @@ static void put32(FILE* f, unsigned long v) { put16(f, v & 0xffff); put16(f, (v 
 
 int main(int argc, char** argv)
 {
-	if (argc < 4) { fprintf(stderr, "usage: blob_harness sidcore.bin tune.sid out.wav [-s N] [-t SEC] [-r HZ] [-v VOL (256 = 100%)]\n"); return 2; }
-	int song = 0, seconds = 120, rate = 44100, vol = -1;
+	if (argc < 4) { fprintf(stderr, "usage: blob_harness sidcore.bin tune.sid out.wav [-s N] [-t SEC] [-r HZ] [-v VOL (256 = 100%)] [-chip 6581|8580|auto] [-curve 0|1 (1 = Bright)] [-engine 0|1 (1 = reSID)]\n"); return 2; }
+	int song = 0, seconds = 120, rate = 44100, vol = -1, chip6581 = 0, curve = 0, engineSel = 0, filterSel = 1, clockSel = 0;
 	verbose = getenv("BLOB_VERBOSE") != 0;
 	for (int i = 4; i + 1 < argc; i += 2) {
 		if (!strcmp(argv[i], "-s")) song = atoi(argv[i + 1]);
 		else if (!strcmp(argv[i], "-t")) seconds = atoi(argv[i + 1]);
 		else if (!strcmp(argv[i], "-r")) rate = atoi(argv[i + 1]);
 		else if (!strcmp(argv[i], "-v")) vol = atoi(argv[i + 1]);
+		else if (!strcmp(argv[i], "-chip")) chip6581 = !strcmp(argv[i + 1], "auto") ? 2 : atoi(argv[i + 1]) == 6581;
+		else if (!strcmp(argv[i], "-curve")) curve = atoi(argv[i + 1]);
+		else if (!strcmp(argv[i], "-engine")) engineSel = atoi(argv[i + 1]);
+		else if (!strcmp(argv[i], "-filter")) filterSel = atoi(argv[i + 1]);
+		else if (!strcmp(argv[i], "-clock")) clockSel = atoi(argv[i + 1]);
 	}
 
 	/* load and relocate the core */
@@ -73,7 +78,7 @@ int main(int argc, char** argv)
 	if (call(&c)) { fprintf(stderr, "init failed: %lu\n", c.result); return 1; }
 
 	memset(&c, 0, sizeof c);
-	c.cmd = SC_CONFIG; c.a[0] = rate; c.a[1] = 0; c.a[2] = 1; c.a[3] = 0;
+	c.cmd = SC_CONFIG; c.a[0] = rate; c.a[1] = getenv("BLOB_POSTCONFIG") ? 0 : chip6581; c.a[2] = filterSel; c.a[3] = clockSel; c.a[4] = curve; c.a[5] = engineSel;
 	if (call(&c)) { fprintf(stderr, "config failed: %lu\n", c.result); return 1; }
 	if (vol >= 0) {                       /* SC_VOLUME (the settings' volume) */
 		memset(&c, 0, sizeof c);
@@ -89,6 +94,16 @@ int main(int argc, char** argv)
 	printf("%s | %s | %s | songs %lu (start %lu) | clock %lu model %lu\n",
 	       c.str[0], c.str[1], c.str[2], c.a[0], c.a[1], c.a[2], c.a[3]);
 
+	if (getenv("BLOB_POSTCONFIG")) {      /* BLOB_POSTCONFIG=1: start on the 8580, play 5 s, then change to
+	                                         the -chip/-curve settings and restart, as Settings does */
+		memset(&c, 0, sizeof c);
+		c.cmd = SC_START; c.a[0] = song; call(&c);
+		unsigned char tmp[8820];
+		for (int k = 0; k < 50; k++) { memset(&c, 0, sizeof c); c.cmd = SC_FILL; c.a[0] = (unsigned long)tmp; c.a[1] = sizeof tmp; call(&c); }
+		memset(&c, 0, sizeof c);
+		c.cmd = SC_CONFIG; c.a[0] = rate; c.a[1] = chip6581; c.a[2] = filterSel; c.a[3] = clockSel; c.a[4] = curve; c.a[5] = engineSel;
+		call(&c);
+	}
 	memset(&c, 0, sizeof c);
 	c.cmd = SC_START; c.a[0] = song;
 	if (call(&c)) { fprintf(stderr, "start failed\n"); return 1; }

@@ -7,6 +7,7 @@
 #include "eeconfig.h"
 #include <cstring>
 #include "filtertables.h"
+#include "brighttables.h"
 
 // ------------------------------------------------------------- constructors
 
@@ -830,6 +831,30 @@ void emuEngine::filterTableInit()
 	}
 	filterResTable[0] = TO_FILTERFLOAT(resDyMin);
 	filterResTable[15] = TO_FILTERFLOAT(resDyMax);
+}
+
+// sid-player: the "Bright" low-pass table (tools/gen_bright_tables.py).  Stored for 44100 Hz and
+// scaled for other rates as filterTableInit scales its own (x 44100 / rate, clamped to 0.01..1);
+// at 44100 Hz the stored values are used as they are, so every build gets exactly the same table.
+void emuEngine::setBrightFilterTable(bool mos8580)
+{
+	extern filterfloat filterTable[0x800];
+	const unsigned long* bits = brightTableBits[mos8580 ? 1 : 0];
+	const float scale = (float)brightTableRate / (float)config.frequency;
+	for ( unsigned i = 0; i < 0x800; i++ )
+	{
+		float y;
+		memcpy( &y, &bits[i], sizeof(float) );
+		if ( config.frequency != brightTableRate )
+		{
+			y *= scale;
+			if ( y < 0.01f )
+				y = 0.01f;
+			if ( y > 1.0f )
+				y = 1.0f;
+		}
+		filterTable[i] = TO_FILTERFLOAT(y);
+	}
 }
 
 bool emuEngine::setVoiceVolume(int voice, ubyte leftLevel, ubyte rightLevel, uword total)

@@ -1,7 +1,8 @@
 # SID Player for Palm OS 5 (design notes)
 
-**Status 2026-11-13: VERSION 1.01 RELEASED** (1.0 the same day), https://github.com/cyberpunkgothic/palm-sid-player
-(public; releases v1.0 and v1.01 have both .prc files).  Tested on the real Palm TX (tests/TX_CHECKLIST.md: all
+**Status 2026-11-15: VERSION 2 RELEASED** ("V2", in the C64's own style; 1.0 and 1.01 on 2026-11-13),
+https://github.com/cyberpunkgothic/palm-sid-player (public; releases v1.0, v1.01 and v2 have both .prc
+files).  V2: the cRSID engine and RSID tunes, the Bright filter curve, Auto chip (below).  Tested on the real Palm TX (tests/TX_CHECKLIST.md: all
 passed; Speed Test under 20% with the filter on, under 10% off), the TX simulator, and CloudpilotEmu
 (Tungsten E2, E3v2, deNVFS E2, rePalm; an OS 4 m515 refuses politely).  The device fixes on the way
 are under "Device compatibility" below.  The repository leaves out the user's tunes (tests/tunes/user,
@@ -23,6 +24,120 @@ moves (it's a single word the stream callback reads), Cancel restores it, and a 
 doesn't restart the song.  tests/blob_harness.c takes -v VOL; checked under qemu: 200% = x2 exactly,
 400% = x4 with clipping (Elite: 3% of samples).  Both apps; MANUAL.md/.txt updated.  Tested by the user
 on the TX (the scale lines up, the volume is saved between sessions), released as v1.01.
+
+**Bright filter curve (2026-11-15, in V2):** confirmed by the user: both apps work, and Elvira
+plays with the right filter (Auto chip, Bright) with its drum hiss.  Settings' Filter row was then
+Off / Original / Bright (default Bright; Off later removed, below).  Bright replaces libsidplay's low-pass table with reSIDfp's
+measured cut-off curve (libsidplayfp/Sidplay3 at its default filter setting, 0.5) for the chip chosen in
+Settings: one table for the 6581, one for the 8580 (src/core/brighttables.h, 2 x 8 KB, made by
+tools/gen_bright_tables.py from tools/filter_measurements: white noise through the low-pass filter at
+every cut-off setting, measured -3 dB points).  It follows reSIDfp to within about 1% up to about 16 kHz,
+where libsidplay's filter opens; the band-pass curve and the (weak) resonance stay libsidplay's.  Stored
+as float bit patterns at 44100 Hz, scaled for other rates, so PC, ARM and simulator use the same values:
+ARM core vs PC 64/64 identical (16 tunes, both chips, 44.1 and 22.05 kHz).  Core: SC_CONFIG a4 = curve
+(emuEngine::setBrightFilterTable; back to Original via setDefaultFilterStrength).  Original is unchanged
+(test_render 19/19, sidcore 19/19); settings_check now covers the curve (24/24, both directions).
+Prefs version 4: the curve in v3's spare byte; v1.01's settings are kept and get Bright.  Same cost per
+sample as Original.  The Sidplay3 fork uses the same header and gives byte-identical Bright renders.
+**Auto chip (same day, user asked):** Settings' chip row is Auto / 6581 / 8580 (default Auto: the tune's
+own chip from its PSID v2+ header, 8580 if it doesn't say; the clock already had Auto).  Prefs v4 field
+`chip` (0 8580, 1 6581, 2 auto); older prefs: 8580 (the old default) becomes Auto, 6581 stays.  Core:
+SC_CONFIG a1 = 2; the core sets the chip in SC_LOAD from the file header BEFORE creating the tune
+(waveforms and Bright curve follow it); SC_START re-checks and returns the chip in a1.  Lesson: switching
+the chip after loading but before the first song start gave slightly different sound on the ARM build
+with Bright (one-step voice differences, not on the PC); setting it before the tune is created, or via
+Settings after a song has played, matches a fixed chip exactly.  Checked: ARM auto = PC fixed chip (8/8,
+both curves, start and via Settings: tests/blob_harness.c -chip auto, BLOB_POSTCONFIG=1), settings_check
+36/36 on three tunes.  Why: the user prefers reSID-like highs for filtered
+drums (e.g. Elvira tune 1, whose noise drum libsidplay's curve nearly silences).
+
+**Engines: libsidplay 1 and cRSID (2026-11-15, released in V2; confirmed by the user on the TX).**
+Settings has an Engine row, libsidplay | cRSID (prefs v5: `engine` in a seventh byte, 0 libsidplay,
+2 cRSID; core SC_CONFIG a5).  cRSID (Hermit, 2022, WTFPL, src/crsid; changes in src/crsid/SIDPLAYER.md)
+runs the tune on its own cycle-exact 6510, CIA and VIC, so it plays RSID tunes; libsidplay 1 can't load
+them, so RSID files play with cRSID whichever engine is chosen.  src/core/crsidengine.c is the only file
+that includes cRSID: it keeps a copy of the file with the header rewritten as v2, carrying the chip and
+clock chosen in Settings (cRSID reads them from the flags at song start, and reads v2 flags even from v1
+headers), makes an init address of 0 the load address (PSID rule cRSID doesn't apply), and switches on
+cRSID's PlaySID sample mode for old rips that store to $D41D (`usesPlaySIDSamples` in sidcore.cpp).  The
+start song, chip (Auto: the header's, 8580 if unsaid) and clock follow libsidplay's rules.  libsidplay
+still loads every file first (song list, details); for RSID the details come from the header.
+Checked: the core's cRSID output is sample-identical to a standalone cRSID build (Elvira PSID, Ghostbusters
+RSID); with sample mode off the old Ghostbusters loses its speech (first 3 s silent), with it on it plays.
+Palm TX Speed Test (user): Elvira 10% libsidplay + Bright, 27% cRSID; old Ghostbusters (PlaySID samples)
+29% cRSID; HVSC Ghostbusters (RSID, speech) 63% cRSID, smooth.  Core 241 KB + 412 KB bss (cRSID's C64:
+four 64 KB banks); arena 640 KB as before (peak 405 KB).  The simulator's DLL can't build cRSID (its 6510
+is GCC nested functions): src/core/crsidstub.c, so there libsidplay plays and RSID doesn't load.
+**Filter row (user):** Original | Bright only; Off is gone (prefs `filter` forced on).  cRSID has its own
+filter, so with cRSID chosen the row shows Original greyed out: the real push buttons are hidden (they
+keep libsidplay's choice and take no taps) and grey ones are drawn in their place (drawGreyPush; Palm OS
+push buttons have no disabled look); choosing libsidplay again shows the real ones as they were.  The
+About box credits Hermit (the WTFPL asks for it).
+**Tried and dropped the same day:**
+- reSID 0.16 as a third engine (libsidplay 1 runs the tune, every SID write fed to reSID in order through
+  `sidWriteHook`/`sidEmuFillOverride`, which stay in 6510_/6581_.cpp unset), tuned like reSIDfp
+  (measured curves, 2-cycle filter steps, stronger resonance): ARM vs PC 128/128, 15% on the TX.  The
+  user found cRSID sounds almost the same, so it was taken out: archive/resid-engine (README there).
+  Lesson: register snapshots per player call lose Elvira's drum (gate off/on within one call).
+- The newest reSID (VICE 3.10, reSID 1.0 underneath): 21.4 MB of filter tables (17.2 MB with the old
+  8580 filter) built at start-up in soft-float, about 32 billion instructions (minutes on the TX), and
+  ~90M instructions per audio second to play.  Not portable as it stands.
+- libsidplay2 2.1.1 + reSID 0.16 (its ReSID builder) for RSID: it played them, but the TX Speed Test
+  gave 79% for Ghostbusters with the speech lagging (qemu count 147M/s = 77%), and it needs the real
+  Commodore KERNAL/BASIC/character ROMs.  Removed.  Lessons: libsidplay2 sets the chip model at song
+  start and reSID 0.16 keeps a cut-off table per chip, so a curve set before lands in the other chip's
+  table (Elvira lost its drum hiss); libc's rand() asserts and sprintf drags in stdio and the file
+  syscalls (the core can't link those); on Windows `#include "SidTune.h"` finds libsidplay 1's
+  sidtune.h; uint_least32_t is unsigned long for arm-none-eabi, unsigned int on x86.
+**Yardstick:** qemu instruction counts (tests/blob_harness.c, `-one-insn-per-tb -d nochain,exec`)
+predict the TX well: about 190M instructions per second of audio = 100% of the TX's processor (libsidplay
+18.9M/s = 10%, reSID 32.4M/s = 15%, cRSID 59.3M/s = 27%, libsidplay2 147M/s = 79%).  Wall-clock qemu
+timings do not (they put libsidplay2 at ~46%).
+
+**How the engines were chosen (2026-11-15).**
+*What the user wanted, in order:* (1) keep SIDPLAY/w's original sound (libsidplay 1) as the default;
+(2) the highs newer players keep, which libsidplay 1's filter curve removes (Elvira tune 1's filtered
+noise drum was the test case throughout); (3) RSID tunes, which libsidplay 1 can't load; (4) smooth
+playback on the TX with headroom, judged by the app's Speed Test; (5) nothing that can't be published:
+GPL-compatible licences and no copyrighted ROM images.
+*How candidates were judged:* each was built for the Palm core's target (ARMv4T, software floating
+point, -O2) and its cost counted under qemu as ARM instructions per second of audio, on 10 s of Elvira
+tune 1 (start-up counted separately); sound was judged by the user listening to WAV renders (copied to
+build/engine_compare) against SIDPLAY/w and Sidplay3; the finalists went into test builds of the app
+for the TX Speed Test.  Ear and Speed Test decided; the counts only shortlisted.
+*The steps:*
+1. **The filter curve first.** Measuring reSIDfp's low-pass response (white noise at every cut-off
+   setting) and giving libsidplay that curve (Bright) met (2) at no extra cost.  Kept: it is the
+   libsidplay engine's default curve.
+2. **Survey of other engines.** reSID 0.13-0.16 (VICE 1.8-2.2), reSID 1.0 / VICE 3.x, reSID-fp and
+   libsidplayfp's reSIDfp, reSID-dtv, cRSID, TinySID and Frodo's SID.  Ruled out on paper: reSID-fp and
+   reSIDfp (floating point throughout, every operation soft-float on the TX, plus large tables and a
+   sinc resampler), reSID-dtv (0.16 for another chip), TinySID (very inaccurate; what cRSID replaced in
+   Rockbox) and Frodo (sample-based like libsidplay 1: a third "original-style" sound, not newer-style).
+3. **Counts** (SID emulation only unless said; libsidplay 1 core then 22.6M/s with its 6510): reSID
+   0.13 / 0.14 / 0.15 / 0.16 fast mode 24.1 / 25.2 / 25.0 / 25.1M/s; 0.16 interpolate mode ~275M/s
+   (over 100% of the TX); resample mode 100-470M+ instructions of start-up per song; cRSID 54.9M/s
+   including its own 6510.  reSID 0.16 fast mode won the shortlist: about libsidplay's cost, with
+   0.13's noise and envelope bugs fixed.
+4. **reSID 0.16 by ear.** Its own 6581 curve is dark (cut-off register 0x60 = 1.6 kHz), so Elvira's drum
+   lost its hiss as in libsidplay; the 8580 kept it.  Tuned toward reSIDfp: its measured cut-off
+   curves, 2-cycle filter steps (cut-off up to 16 kHz) and stronger resonance.  The user: "sounds almost
+   the same" as Sidplay3.  Built in as a third engine (libsidplay 1 runs the tune; every SID write
+   passed on in order: snapshots per player call lost the drum).  TX: 15% (libsidplay 10%).
+5. **The newest reSID** (VICE 3.10), to see if it was worth backporting: 21.4 MB of tables, ~32 billion
+   instructions of start-up (minutes on the TX), ~90M/s to play.  Discarded by the user.
+6. **RSID.** Two ways to run a real C64 environment: cRSID (its own 6510/CIA/VIC) or libsidplay2 2.1.1
+   (libsidplay 1's successor, made for reSID 0.16, so it would keep the tuned reSID sound).  cRSID went
+   in as a test engine first: TX 27% on Elvira, sound liked by the user.  libsidplay2 + the tuned reSID
+   followed for RSID (after fixing the curve landing in the wrong chip's table): TX 79% on the RSID
+   Ghostbusters, with its speech lagging; cRSID played the same tune at 63%, smoothly.  libsidplay2
+   also needs the real Commodore ROMs.
+7. **The decision (user):** libsidplay 1 and cRSID only.  cRSID sounds almost exactly like the tuned
+   reSID on the TX, plays RSID and PlaySID-sample rips itself, and needs no ROMs; so reSID was taken out
+   (archived, at 15% it is the cheaper of the two newer-style engines) and libsidplay2 removed.  cRSID
+   then plays every tune itself when chosen, with no fallback (the user: it was built for these tunes).
+*Why libsidplay stays the default:* it is the sound the player was made for, and it costs well under
+half of cRSID (10% against 27% on the TX), which leaves the most headroom.
 
 Status: milestone 1 built 2026-11-07: tools\pc_build.bat (MSVC, 32-bit) builds the unchanged
 libsidplay 1.36.60 + src\pc\sid2wav.cpp -> build\pc\sid2wav.exe; test WAVs in build\wav

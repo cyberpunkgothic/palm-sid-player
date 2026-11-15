@@ -54,6 +54,9 @@
 
 ubyte* c64mem1 = 0;               // 64KB C64-RAM
 ubyte* c64mem2 = 0;               // Basic-ROM, VIC, SID, I/O, Kernal-ROM
+// sid-player: called with every write to a SID register (0-0x1c), in order, when another SID
+// emulation (the reSID engine, archive/resid-engine; unset in the Palm app) makes the sound.
+void (*sidWriteHook)(int reg, int value) = 0;
 bool sidKeysOff[32];              // key_off detection
 bool sidKeysOn[32];               // key_on detection
 ubyte sidLastValue = 0;           // last value written to the SID
@@ -602,6 +605,7 @@ static void writeData_bs(uword addr, ubyte data)
 			{
 				// SID.
 				c64mem2[tempAddr] = (sidLastValue = data);
+				if (sidWriteHook) (*sidWriteHook)(tempAddr & 0x1f, data);
 				// Handle key_ons.
 				sidKeysOn[tempAddr&0x001f] = sidKeysOn[tempAddr&0x001f] || ((data&1)!=0); 
 				// Handle key_offs.
@@ -636,6 +640,7 @@ static void writeData_plain(uword addr, ubyte data)
 	{
 		// SID.
 		c64mem2[tempAddr] = (sidLastValue = data);
+		if (sidWriteHook) (*sidWriteHook)(tempAddr & 0x1f, data);
 		// Handle key_ons.
 		sidKeysOn[tempAddr&0x001f] = sidKeysOn[tempAddr&0x001f] || ((data&1)!=0); 
 		// Handle key_offs.

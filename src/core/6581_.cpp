@@ -1078,6 +1078,8 @@ static udword scaledBufferLen;
 
 void* fill8bitMono(void*, udword); // only need one fill()-prototype here
 void* (*sidEmuFillFunc)(void*, udword) = &fill8bitMono; // default
+// sid-player: when set, makes the samples instead of libsidplay's voices (the reSID engine, archive/resid-engine; unset in the Palm app)
+void* (*sidEmuFillOverride)(void*, udword) = 0;
 
 
 void sidEmuFillBuffer( emuEngine& thisEmu,
@@ -1124,13 +1126,13 @@ void sidEmuFillBuffer( emuEngine& thisEmu,
 		{
 			if ( toFill > bufferLen )
 			{
-				buffer = (*sidEmuFillFunc)(buffer, bufferLen);
+				buffer = (*(sidEmuFillOverride ? sidEmuFillOverride : sidEmuFillFunc))(buffer, bufferLen);
 				toFill -= bufferLen;
 				bufferLen = 0;
 			}
 			else if ( toFill > 0 )
 			{
-				buffer = (*sidEmuFillFunc)(buffer, toFill);
+				buffer = (*(sidEmuFillOverride ? sidEmuFillOverride : sidEmuFillFunc))(buffer, toFill);
 				bufferLen -= toFill;
 				toFill = 0;   
 			}

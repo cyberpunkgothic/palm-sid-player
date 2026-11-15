@@ -1,8 +1,8 @@
 # SID Player for Palm OS 5 — User Manual
 
-*Version 1.01*
+*Version 2*
 
-SID Player plays Commodore 64 music (SID tunes) on a Palm OS 5 handheld. It uses libsidplay 1, the engine behind SIDPLAY/w's "original" sound, so tunes sound the way they did in SIDPLAY/w rather than the way modern reSID-based players render them.
+SID Player plays Commodore 64 music (SID tunes) on a Palm OS 5 handheld. It uses libsidplay 1, the engine behind SIDPLAY/w's "original" sound, so tunes sound the way they did in SIDPLAY/w. A second engine, cRSID, gives a sound closer to newer players and also plays the RSID tunes libsidplay 1 can't (see section 4).
 
 It comes as two separate apps that play exactly the same way:
 
@@ -43,7 +43,7 @@ If your handheld has more than one card or drive, the player uses the first one 
 
 | What | Details |
 |---|---|
-| **Format** | **PSID** `.sid` files: the format of most of the High Voltage SID Collection (HVSC) |
+| **Format** | **PSID** and **RSID** `.sid` files: the formats of the High Voltage SID Collection (HVSC). RSID tunes play with the cRSID engine. |
 | **File names** | Ending in `.sid`, under 64 characters. Underscores show as spaces in the list, and the `.sid` ending is left off. |
 | **How many** | Up to 256 tunes; the list is sorted by name |
 | **Size** | Up to 128 KB per file (SID tunes are far smaller) |
@@ -68,7 +68,7 @@ The DX screen is laid out like a C64 directory listing:
 
 | Panel | What it shows |
 |---|---|
-| **Title line** | `*** SID PLAYER DX V1.01 ***` and the number of tunes on the card |
+| **Title line** | `*** SID PLAYER DX V2 ***` and the number of tunes on the card |
 | **NOW PLAYING** | Title, author and copyright; **SONG N/M** and the time played. Before you choose anything it says *TAP A TUNE BELOW TO PLAY IT*. |
 | **Buttons** | Play/pause, **<<** and **>>** (previous and next song in the file) |
 | **VOICES** | One level bar for each of the SID chip's three voices. A bar jumps to full when its voice starts a note, then settles back to the voice's loudness. Shown only on the tall screen (see section 5). |
@@ -101,12 +101,13 @@ The DX screen is laid out like a C64 directory listing:
 
 | Setting | Choices | What it does |
 |---|---|---|
-| **SID chip** | **6581** or **8580** (default 8580) | Which version of the C64's sound chip to imitate. In libsidplay 1 this only changes how two waveforms played together sound, so most tunes sound the same either way. A few, which use that trick, differ. |
-| **Filter** | On (default) or off | Whether the SID chip's filter is imitated. Tunes are written for it, so leave it on unless you're short of speed (see section 6). Off makes many tunes brighter or harsher. |
+| **SID chip** | **Auto** (default), **6581** or **8580** | Which version of the C64's sound chip to imitate. *Auto* uses the chip the tune asks for, or the 8580 if it doesn't say (as the clock's *Auto* does). In libsidplay 1 this changes how two waveforms played together sound, which only a few tunes use. With the *Bright* filter it also picks that chip's filter curve, so filtered tunes can sound quite different on the two chips. |
+| **Filter** | **Original** or **Bright** (default Bright) | Which cut-off curve the SID chip's filter follows. *Original* is libsidplay 1's own filter curve, the sound of SIDPLAY/w's original mode. *Bright* lets through the high frequencies newer SID players (reSID) keep, such as filtered drums and hi-hats: the same filter, with its cut-off following the newer players' measured curve for the chosen chip. Both cost the same speed. This is for the libsidplay engine: cRSID has its own filter, so with cRSID chosen the row shows *Original*, greyed out. Choosing libsidplay again brings back your choice. |
 | **Clock** | **Auto** (default), **PAL** or **NTSC** | The speed of the C64 the tune was written for. *Auto* uses the speed the tune asks for, or PAL if it doesn't say. PAL machines (Europe) and NTSC machines (America) ran at slightly different speeds and pitches, and tunes were written for one or the other: forcing the wrong one makes a tune play faster or slower. |
+| **Engine** | **libsidplay** (default) or **cRSID** | What plays the tune. *libsidplay* is libsidplay 1, the sound of SIDPLAY/w. *cRSID*, by Hermit, imitates a whole C64 (processor, timers and video chip as well as the SID) with a SID sound close to newer players. It also plays **RSID** tunes, written for a real C64's timing, which libsidplay can't load: those play with cRSID whichever engine is chosen. Old rips that play speech or drums through PlaySID's sample registers play with either. The chip and clock settings apply to both. cRSID costs nearly three times as much: on a Palm TX, a tune that took 10% with libsidplay took 27% with cRSID, and an RSID tune with speech took 63% (see section 6). |
 | **Volume** | A slider, **0%** to **200%** in steps of 5% (default 100%) | How loud the music plays. It changes as you move the slider, so you can set it by ear. The long marks under the slider are 0, 100 and 200%; the short ones are every 25%. 100% is libsidplay's own level, which leaves room for four voices: on earbuds you'll probably want less, on the speaker more. Most tunes stay clean up to 200%. The handheld's own volume settings in Preferences don't affect SID Player. |
 
-Tap **OK** to keep the changes or **Cancel** to leave them as they were (Cancel also puts the volume back). If you changed the chip, the filter or the clock, **OK restarts the current song from the beginning** with the new settings; a new volume alone carries on without a restart. The settings are saved and used next time; SID Player and SID Player DX each keep their own.
+Tap **OK** to keep the changes or **Cancel** to leave them as they were (Cancel also puts the volume back). If you changed the chip, the filter, the clock or the engine, **OK restarts the current song from the beginning** with the new settings; a new volume alone carries on without a restart. The settings are saved and used next time; SID Player and SID Player DX each keep their own.
 
 ## 5. Screen sizes
 
@@ -127,9 +128,9 @@ The app makes 10 seconds of that song's music as fast as it can, then reports ho
 | 80–99% | *Borderline: it may stutter.* |
 | 100% or more | *Too slow to play in real time.* |
 
-On a Palm TX, every tune tried used under 20% with the filter on, and under 10% with it off.
+On a Palm TX, every tune tried used under 20%. The cRSID engine costs nearly three times as much: a tune that took 10% took 27% with cRSID. RSID tunes cost the most; one with speech samples took 63%.
 
-Busy tunes cost more than quiet ones, so try one of your busiest. If a tune stutters, turning the filter off in Settings makes playing cheaper; run the test again to see by how much. After the test the song starts again from the beginning; if it was paused, it stays paused.
+Busy tunes cost more than quiet ones, so try one of your busiest. The test uses the current settings, including the engine. If a tune stutters, choosing the libsidplay engine in Settings makes playing cheaper (not for RSID tunes, which always use cRSID); run the test again to see by how much. After the test the song starts again from the beginning; if it was paused, it stays paused.
 
 (In the Palm OS Simulator on a PC, the test measures the PC, and says so.)
 
@@ -142,7 +143,7 @@ Busy tunes cost more than quiet ones, so try one of your busiest. If a tune stut
 | **Not enough memory for the sound core / the player / the sound buffer** | Free some memory (delete apps or data you don't need), or reset the handheld, then try again. The player needs about 1 MB while it runs. |
 | **The sound core is missing or damaged.** | Install the `.prc` file again. |
 | **Could not open the sound output.** | The handheld's sound couldn't be started: reset the handheld and try again. |
-| ***name* is not a PSID tune.** / ***name*: not a playable tune** | The file isn't a PSID tune, or it's damaged. Some newer HVSC files are in a format libsidplay 1 can't play. |
+| ***name* is not a SID tune.** / ***name*: not a playable tune** | The file isn't a PSID or RSID tune, or it's damaged. |
 | **Could not open *name*** | The file was moved or renamed (with the card still in): reopen the app to read the list again. |
 | **Choose a tune first: the test uses the current song.** | The Speed Test needs a tune playing or paused. |
 
@@ -154,6 +155,7 @@ SID Player is free software under the **GNU General Public License, version 2 or
 
 **Credits:**
 - **Michael Schwendt:** libsidplay 1, the engine of SIDPLAY's original sound.
+- **Hermit (Mihály Horváth):** cRSID, the cRSID engine.
 - **PalmSource and palmOne:** the Palm OS SDKs and simulators.
 - **The community members who keep the old Palm development tools working:** Dmitry Grinberg (GCC for Palm OS), Wes Cherry and Aaron Ardiri (PilRC), palm2000.com and Chuan Ji.
 - **Testing on other handhelds:** Christian Speckner (CloudpilotEmu, and finding a crash on rePalm), Dmitry Grinberg (uARM, rePalm, and the suggestion that lets the player run on older processors), and PalmDB and the people on its Discord who tried it out.

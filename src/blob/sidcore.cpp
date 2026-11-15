@@ -6,6 +6,7 @@
 #include "player.h"
 
 #include "sidcore_api.h"
+#include "crsidengine.h"
 
 // ---------------------------------------------------------------- arena allocator
 // First fit with coalescing, inside the one block the host gives us.  Every block starts with
@@ -147,6 +148,65 @@ static sidTune* tune = 0;
 static bool initDone = false;
 static volatile bool playing = false;
 static volatile long volume = 256;      // SC_VOLUME: 256 = libsidplay's own level
+static bool brightCurve = false;        // the Bright filter table is in use
+static unsigned long chipMode = 0;      // SC_CONFIG a1: 0 8580, 1 6581, 2 auto (the tune's own)
+static unsigned long curveMode = 0;     // SC_CONFIG a4: 0 libsidplay's own curve, 1 Bright
+static unsigned long engineMode = 0;    // SC_CONFIG a5: 0 libsidplay 1, 2 cRSID (1, reSID: gone; libsidplay)
+static unsigned long clockMode = 0;     // SC_CONFIG a3: 0 the tune's own, 1 PAL, 2 NTSC
+static bool filterOn = true;            // SC_CONFIG a2
+static bool crsidOn = false;            // cRSID is playing the started song
+static bool crsidOnly = false;          // only cRSID can play the loaded tune (RSID: libsidplay 1 can't load it)
+static bool playsidSamples = false;     // the loaded tune uses PlaySID's sample registers
+static unsigned long sampleRate = 44100; // SC_CONFIG a0
+
+// Old rips that play samples through PlaySID's extra registers ($D41D on; not on a real C64, so
+// HVSC later re-ripped them).  Any 6510 store to $D41D in the tune's data (STA/STX/STY abs, STA
+// abs,X / abs,Y) marks one.  libsidplay plays the samples as it is; cRSID only in its PlaySID
+// sample mode, which this switches on (crsidStart).
+static bool usesPlaySIDSamples(const ubyte* d, udword len)
+{
+	if (len < 0x7C) return false;
+	udword i = ((udword)d[6] << 8) | d[7];
+	for (; i + 2 < len; i++)
+		if ((d[i] == 0x8D || d[i] == 0x8E || d[i] == 0x8C || d[i] == 0x9D || d[i] == 0x99) &&
+		    d[i + 1] == 0x1D && d[i + 2] == 0xD4)
+			return true;
+	return false;
+}
+
+// The chip to emulate: true = 8580.  Auto: the loaded tune's own, 8580 if it doesn't say.
+static bool chipFor(unsigned long mode)
+{
+	if (mode == 1) return false;
+	if (mode == 2 && tune && *tune) {
+		sidTuneInfo info;
+		tune->getInfo(info);
+		if (info.sidModel == SIDTUNE_SIDMODEL_6581) return false;
+	}
+	return true;
+}
+
+// The chip a PSID/RSID file asks for (header version 2+, flags bits 4-5: 1 = 6581, 2 = 8580):
+// true = 8580, also when it doesn't say.
+static bool headerChip8580(const ubyte* d, udword len)
+{
+	if (len < 0x78 || !(d[1] == 'S' && d[2] == 'I' && d[3] == 'D')) return true;
+	if (((d[4] << 8) | d[5]) < 2) return true;
+	return ((d[0x77] >> 4) & 3) != 1;
+}
+
+// Filter curve: Bright = reSIDfp's curve for this chip, else libsidplay's own table (rebuilt only
+// when coming back from Bright).
+static void applyCurve(bool mos8580)
+{
+	if (curveMode == 1) {
+		engine->setBrightFilterTable(mos8580);
+		brightCurve = true;
+	} else if (brightCurve) {
+		engine->setDefaultFilterStrength();
+		brightCurve = false;
+	}
+}
 
 // The volume, after the mixer: libsidplay leaves room for four voices, so most tunes peak near half
 // of full scale and sound quiet on a handheld's speaker.  Louder than that clips (hard, at full
@@ -173,7 +233,10 @@ long sidcoreStream(void* userData, unsigned long channel, void* buffer, unsigned
 extern "C" long sidcoreStreamMain(void* userData, unsigned long channel, void* buffer, unsigned long frames)
 #endif
 {
-	if (playing && engine && tune) {
+	if (playing && crsidOn) {
+		crsidFill((short*)buffer, frames);
+		applyVolume(buffer, frames);
+	} else if (playing && engine && tune) {
 		sidEmuFillBuffer(*engine, *tune, buffer, (udword)(frames * 2));
 		applyVolume(buffer, frames);
 	} else
@@ -194,6 +257,7 @@ static unsigned long command(SidCoreCall* c)
 		if (c->a[1] < SIDCORE_MIN_ARENA) return SC_ERR_MEMORY;
 		arenaInit((void*)c->a[0], c->a[1]);
 		randomSeed = c->a[2];
+		brightCurve = false;                   // (a new engine starts with libsidplay's own table)
 		engine = new emuEngine;
 		if (!engine || !*engine) return SC_ERR_MEMORY;
 		c->a[0] = (unsigned long)&sidcoreStream;
@@ -204,10 +268,16 @@ static unsigned long command(SidCoreCall* c)
 		emuConfig cfg;
 		engine->getConfig(cfg);
 		cfg.frequency = (uword)c->a[0];
+		sampleRate = c->a[0];
 		cfg.bitsPerSample = SIDEMU_16BIT;
 		cfg.sampleFormat = SIDEMU_SIGNED_PCM;
 		cfg.channels = SIDEMU_MONO;
-		cfg.mos8580 = (c->a[1] != 1);
+		chipMode = c->a[1];
+		curveMode = c->a[4];
+		engineMode = c->a[5];
+		clockMode = c->a[3];
+		filterOn = (c->a[2] == 1);
+		cfg.mos8580 = chipFor(chipMode);
 		cfg.measuredVolume = true;
 		cfg.emulateFilter = (c->a[2] == 1);
 		cfg.memoryMode = MPU_BANK_SWITCHING;
@@ -218,15 +288,54 @@ static unsigned long command(SidCoreCall* c)
 			cfg.clockSpeed = SIDTUNE_CLOCK_PAL;
 			cfg.forceSongSpeed = false;
 		}
-		return engine->setConfig(cfg) ? 0 : SC_ERR_CONFIG;
+		if (!engine->setConfig(cfg)) return SC_ERR_CONFIG;
+		applyCurve(cfg.mos8580);
+		return 0;
 	}
 
 	case SC_LOAD: {
 		if (!engine) return SC_ERR_STATE;
 		playing = false;
 		delete tune;
+		tune = 0;
+		if (chipMode == 2) {
+			// Auto chip: set it from the file's header before the tune is created.  (Changing
+			// it after loading but before the first song start gave slightly different sound
+			// on the ARM build with the Bright curve; set here, it matches a fixed chip exactly.)
+			bool mos8580 = headerChip8580((const ubyte*)c->a[0], (udword)c->a[1]);
+			emuConfig cfg;
+			engine->getConfig(cfg);
+			if (mos8580 != cfg.mos8580) {
+				cfg.mos8580 = mos8580;
+				engine->setConfig(cfg);
+			}
+			applyCurve(mos8580);
+		}
+		crsidOn = false;
 		tune = new sidTune((const ubyte*)c->a[0], (udword)c->a[1]);
 		if (!tune) return SC_ERR_MEMORY;
+		crsidLoad((const unsigned char*)c->a[0], c->a[1]);   // (kept for the cRSID engine)
+		playsidSamples = usesPlaySIDSamples((const ubyte*)c->a[0], (udword)c->a[1]);
+		crsidOnly = false;
+		if (!*tune) {
+			// libsidplay 1 can't load it (an RSID tune): cRSID plays it, whichever engine is
+			// chosen.  The tune's details from its header.
+			unsigned songs, start;
+			int clk, model, rsid;
+			const char *name, *author, *released;
+			if (crsidInfo(&songs, &start, &clk, &model, &rsid, &name, &author, &released)) {
+				c->a[0] = songs;
+				c->a[1] = start;
+				c->a[2] = (unsigned long)clk;
+				c->a[3] = (unsigned long)model;
+				c->a[4] = (unsigned long)(rsid ? "Real C64 one-file format (RSID)" : "PlaySID one-file format (PSID)");
+				c->str[0] = name;
+				c->str[1] = author;
+				c->str[2] = released;
+				crsidOnly = true;
+				return 0;
+			}
+		}
 		sidTuneInfo info;
 		tune->getInfo(info);
 		c->a[0] = info.songs;
@@ -241,10 +350,44 @@ static unsigned long command(SidCoreCall* c)
 	}
 
 	case SC_START:
+		// cRSID chosen: it plays every tune itself on its own C64 (PSID, RSID, and old rips using
+		// PlaySID's sample registers), with the chip, clock and start song from the tune's header as
+		// libsidplay would choose them.  Also the tunes only cRSID can load, whatever is chosen.
+		// (Not in the simulator's DLL: there libsidplay plays, and RSID tunes don't load.)
+		if (engine && (engineMode == 2 || crsidOnly)) {
+			unsigned songs, start;
+			int clk, model, rsid;
+			const char *name, *author, *released;
+			if (crsidInfo(&songs, &start, &clk, &model, &rsid, &name, &author, &released)) {
+				playing = false;
+				crsidOn = false;
+				bool mos8580 = chipMode == 0 || (chipMode == 2 && model != SIDTUNE_SIDMODEL_6581);
+				bool ntsc = clockMode == 2 || (clockMode == 0 && clk == SIDTUNE_CLOCK_NTSC);
+				int song = crsidStart((int)c->a[0], mos8580, ntsc, filterOn, sampleRate, playsidSamples);
+				if (!song) return SC_ERR_TUNE;
+				crsidOn = true;
+				c->a[0] = (unsigned long)song;
+				c->a[1] = mos8580 ? 0 : 1;
+				playing = true;
+				return 0;
+			}
+		}
 		if (!engine || !tune || !*tune) return SC_ERR_STATE;
 		playing = false;
-		if (!sidEmuInitializeSong(*engine, *tune, (uword)c->a[0])) return SC_ERR_TUNE;
+		crsidOn = false;
 		{
+			// Auto chip: the tune's own (known now that it is loaded); the waveforms and the
+			// Bright filter curve follow it.
+			emuConfig cfg;
+			engine->getConfig(cfg);
+			bool mos8580 = chipFor(chipMode);
+			if (mos8580 != cfg.mos8580) {
+				cfg.mos8580 = mos8580;
+				if (!engine->setConfig(cfg)) return SC_ERR_CONFIG;
+			}
+			applyCurve(mos8580);
+			c->a[1] = mos8580 ? 0 : 1;         // the chip used: 1 = 6581
+			if (!sidEmuInitializeSong(*engine, *tune, (uword)c->a[0])) return SC_ERR_TUNE;
 			sidTuneInfo info;                  // the song actually chosen (0 = the start song)
 			tune->getInfo(info);
 			c->a[0] = info.currentSong;
@@ -254,7 +397,10 @@ static unsigned long command(SidCoreCall* c)
 
 	case SC_FILL:
 		if (!engine || !tune) return SC_ERR_STATE;
-		sidEmuFillBuffer(*engine, *tune, (void*)c->a[0], (udword)c->a[1]);
+		if (crsidOn)
+			crsidFill((short*)c->a[0], c->a[1] / 2);
+		else
+			sidEmuFillBuffer(*engine, *tune, (void*)c->a[0], (udword)c->a[1]);
 		applyVolume((void*)c->a[0], c->a[1] / 2);
 		return 0;
 
@@ -267,6 +413,14 @@ static unsigned long command(SidCoreCall* c)
 		//   a0..a2 = peak output 0..255, measured by the mixer (mixing.cpp, fill16bitMono)
 		//   a3..a5 = 1 if a new note started (gate on, or a pitch jump; 6581_.cpp sidEmuSet)
 		extern ubyte voicePeak[3], voiceNote[3];
+		if (crsidOn) {
+			unsigned char p[3], n[3];
+			crsidMeters(p, n);
+			for (int v = 0; v < 3; v++) {
+				if (p[v] > voicePeak[v]) voicePeak[v] = p[v];
+				if (n[v]) voiceNote[v] = 1;
+			}
+		}
 		for (int v = 0; v < 3; v++) {
 			unsigned long p = (unsigned long)voicePeak[v] * 2;
 			c->a[v] = p > 255 ? 255 : p;

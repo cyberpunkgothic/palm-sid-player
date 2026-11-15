@@ -1,6 +1,6 @@
 #include "resource.h"
 
-VERSION ID 1 "1.01"
+VERSION ID 1 "2"
 APPLICATIONICONNAME ID 1000 "SID Player"
 
 // Launcher icons (the C= logo, drawn by tools/gen_icon.py): 1-bit and 8-bit, single and double density
@@ -54,18 +54,19 @@ END
 
 // About box: a plain modal form rather than an alert, so it makes no alert sound and the app's own
 // loop keeps running while it is open (the simulator's sound buffer is filled from that loop)
-FORM ID AboutForm AT (2 38 156 120)
+FORM ID AboutForm AT (2 26 156 132)
 MODAL
 USABLE
 BEGIN
 	TITLE "About SID Player"
-	LABEL "SID Player 1.01" AUTOID AT (CENTER 16) FONT 1
+	LABEL "SID Player V2" AUTOID AT (CENTER 16) FONT 1
 	LABEL "C64 music with libsidplay 1.36.60" AUTOID AT (4 34)
 	LABEL "by Michael Schwendt (SIDPLAY's" AUTOID AT (4 45)
 	LABEL "original engine). GPL v2 or later." AUTOID AT (4 56)
-	LABEL "Put .sid files in the SID folder" AUTOID AT (4 74)
-	LABEL "on the card." AUTOID AT (4 85)
-	BUTTON "OK" ID AboutOKButton AT (CENTER 103 36 12)
+	LABEL "and cRSID by Hermit (M. Horvath)." AUTOID AT (4 67)
+	LABEL "Put .sid files in the SID folder" AUTOID AT (4 86)
+	LABEL "on the card." AUTOID AT (4 97)
+	BUTTON "OK" ID AboutOKButton AT (CENTER 115 36 12)
 END
 
 // The volume slider's track and thumb (tools/gen_slider.py): its scale 0-200%, a long mark every
@@ -89,23 +90,28 @@ USABLE
 DEFAULTBTNID SetCancelButton
 BEGIN
 	TITLE "Settings"
-	LABEL "SID chip" AUTOID AT (4 18) FONT 1
-	PUSHBUTTON "6581" ID SetModel6581 AT (56 17 30 12) GROUP 1
+	LABEL "SID chip" AUTOID AT (4 17) FONT 1
+	PUSHBUTTON "Auto" ID SetModelAuto AT (56 16 30 12) GROUP 1
+	PUSHBUTTON "6581" ID SetModel6581 AT (PREVRIGHT+1 PREVTOP 30 12) GROUP 1
 	PUSHBUTTON "8580" ID SetModel8580 AT (PREVRIGHT+1 PREVTOP 30 12) GROUP 1
-	LABEL "Filter" AUTOID AT (4 36) FONT 1
-	CHECKBOX "Emulate the filter" ID SetFilterCheck AT (54 35 98 12)
-	LABEL "Clock" AUTOID AT (4 54) FONT 1
-	PUSHBUTTON "Auto" ID SetClockAuto AT (56 53 30 12) GROUP 2
+	LABEL "Filter" AUTOID AT (4 32) FONT 1
+	PUSHBUTTON "Original" ID SetFilterOrig AT (56 31 38 12) GROUP 3
+	PUSHBUTTON "Bright" ID SetFilterBright AT (PREVRIGHT+1 PREVTOP 32 12) GROUP 3
+	LABEL "Clock" AUTOID AT (4 47) FONT 1
+	PUSHBUTTON "Auto" ID SetClockAuto AT (56 46 30 12) GROUP 2
 	PUSHBUTTON "PAL" ID SetClockPAL AT (PREVRIGHT+1 PREVTOP 30 12) GROUP 2
 	PUSHBUTTON "NTSC" ID SetClockNTSC AT (PREVRIGHT+1 PREVTOP 30 12) GROUP 2
-	LABEL "Auto: the tune's own clock," AUTOID AT (4 72)
-	LABEL "or PAL if it doesn't say." AUTOID AT (4 83)
-	LABEL "Volume" AUTOID AT (4 100) FONT 1
-	SLIDER ID SetVolumeSlider AT (52 98 72 15) FEEDBACK MIN 0 MAX 40 VALUE 20 PAGESIZE 5 THUMBID SliderThumbBitmap BACKGROUNDID SliderBgBitmap
-	LABEL "200%" ID SetVolumeLabel AT (127 100)
-	LABEL "Chip, filter or clock changed:" AUTOID AT (4 116)
-	LABEL "OK restarts the current song." AUTOID AT (4 127)
-	BUTTON "OK" ID SetOKButton AT (4 140 36 12)
+	LABEL "Engine" AUTOID AT (4 62) FONT 1
+	PUSHBUTTON "libsidplay" ID SetEngineLib AT (56 61 46 12) GROUP 4
+	PUSHBUTTON "cRSID" ID SetEngineCRSID AT (PREVRIGHT+1 PREVTOP 32 12) GROUP 4
+	LABEL "Auto: the tune's own chip and clock," AUTOID AT (4 77)
+	LABEL "or 8580 and PAL if it doesn't say." AUTOID AT (4 88)
+	LABEL "Volume" AUTOID AT (4 102) FONT 1
+	SLIDER ID SetVolumeSlider AT (52 100 72 15) FEEDBACK MIN 0 MAX 40 VALUE 20 PAGESIZE 5 THUMBID SliderThumbBitmap BACKGROUNDID SliderBgBitmap
+	LABEL "200%" ID SetVolumeLabel AT (127 102)
+	LABEL "Anything but the volume changed:" AUTOID AT (4 117)
+	LABEL "OK restarts the current song." AUTOID AT (4 128)
+	BUTTON "OK" ID SetOKButton AT (4 141 36 12)
 	BUTTON "Cancel" ID SetCancelButton AT (PREVRIGHT+5 PREVTOP 36 12)
 END
 

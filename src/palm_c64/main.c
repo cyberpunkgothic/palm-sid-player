@@ -35,8 +35,11 @@
    clipped, and 100% was too loud on earbuds).  The defaults are the user's SIDPLAY/w settings.
    (Version 1, v1.0, had no volume: its settings are kept.  Version 2, a test build, counted in tens
    of per cent up to 400%.) */
-typedef struct { UInt8 version, chip6581, filter, clock, volume, pad; } SidPrefs;
-#define PREFS_VERSION 3
+typedef struct { UInt8 version, chip, filter, clock, volume, curve, engine; } SidPrefs;
+/* 5: the engine (0 libsidplay, 2 cRSID; 1 was reSID in test builds) in a new seventh byte */
+#define PREFS_VERSION 5   /* 4: chip 0 8580, 1 6581, 2 auto (the tune's own); the filter curve
+                             (0 libsidplay's own, 1 Bright) in v3's spare byte */
+#define CHIP_AUTO 2
 #define VOL_MAX 40
 #define VOL_DEFAULT 20
 
@@ -206,26 +209,45 @@ static void loadPrefs(Globals* g)
 	SidPrefs p;
 	UInt16 size = sizeof p;
 	g->prefs.version = PREFS_VERSION;
-	g->prefs.chip6581 = 0;                 /* 8580 waveforms */
+	g->prefs.chip = CHIP_AUTO;             /* the tune's own chip */
 	g->prefs.filter = 1;
 	g->prefs.clock = 0;
 	g->prefs.volume = VOL_DEFAULT;
-	g->prefs.pad = 0;
+	g->prefs.curve = 1;                    /* the Bright filter curve */
+	g->prefs.engine = 0;                   /* libsidplay's own SID */
 	if (PrefGetAppPreferences(appCreator, 0, &p, &size, true) == noPreferenceFound)
 		return;
 	if (size == sizeof p && p.version == PREFS_VERSION)
 		g->prefs = p;
-	else if (size == sizeof p && p.version == 2) {  /* the test build's: tens of per cent */
+	else if (size == sizeof p - 1 && p.version == 4) {  /* the same, no engine */
+		g->prefs = p;
+		g->prefs.version = PREFS_VERSION;
+		g->prefs.engine = 0;
+	}
+	else if (size == sizeof p - 1 && p.version == 3) {  /* v1.01's: the same, no curve */
+		g->prefs = p;
+		g->prefs.version = PREFS_VERSION;
+		g->prefs.curve = 1;
+		g->prefs.engine = 0;
+		if (g->prefs.chip == 0) g->prefs.chip = CHIP_AUTO;   /* (8580 was the only default) */
+	}
+	else if (size == sizeof p - 1 && p.version == 2) {  /* the test build's: tens of per cent */
 		g->prefs = p;
 		g->prefs.version = PREFS_VERSION;
 		g->prefs.volume = p.volume * 2 > VOL_MAX ? VOL_MAX : p.volume * 2;
+		g->prefs.curve = 1;
+		g->prefs.engine = 0;
+		if (g->prefs.chip == 0) g->prefs.chip = CHIP_AUTO;
 	} else if (size == 4 && p.version == 1) {     /* v1.0's: the same, no volume */
-		g->prefs.chip6581 = p.chip6581;
+		g->prefs.chip = p.chip ? 1 : CHIP_AUTO;
 		g->prefs.filter = p.filter;
 		g->prefs.clock = p.clock;
 	}
 	if (g->prefs.volume > VOL_MAX)
 		g->prefs.volume = VOL_DEFAULT;
+	if (g->prefs.engine != 2)              /* (1, reSID, was in test builds only) */
+		g->prefs.engine = 0;
+	g->prefs.filter = 1;                   /* (no Off any more: always on, with the curve as saved) */
 }
 
 static void savePrefs(Globals* g)
@@ -409,9 +431,11 @@ static UInt32 configCore(Globals* g)
 {
 	UInt32 a[6] = { 0 }, r;
 	a[0] = SAMPLE_RATE;
-	a[1] = g->prefs.chip6581 ? 1 : 0;
+	a[1] = g->prefs.chip;
 	a[2] = g->prefs.filter ? 1 : 0;
 	a[3] = g->prefs.clock;
+	a[4] = g->prefs.curve;
+	a[5] = g->prefs.engine;
 	r = coreCall(g, SC_CONFIG, a, 0);
 	setVolume(g, g->prefs.volume);
 	return r;
@@ -624,7 +648,7 @@ static Boolean loadTune(Globals* g, Int16 index)
 		return false;
 	}
 	VFSFileSize(f, &len);
-	if (len < 0x7c || len > 0x20000) { VFSFileClose(f); showError(g->names[index], " is not a PSID tune.", 0); return false; }
+	if (len < 0x7c || len > 0x20000) { VFSFileClose(f); showError(g->names[index], " is not a SID tune.", 0); return false; }
 	data = (UInt8*)MemChunkNew(0, len, chunkFlagsLarge);
 	if (!data) { VFSFileClose(f); showError("Not enough memory for ", g->names[index], 0); return false; }
 	dlog("  file size", len);
@@ -794,7 +818,7 @@ static void drawScene(Globals* g)
 	fillRect(g, 0, g->stripY, PANEL_W, STRIP_H, C_LIGHTBLUE);              /* the border */
 	fillRect(g, 8, 8, PANEL_W - 16, g->scrH - 16, C_BLUE);                 /* the screen */
 
-	StrCopy(line, " *** SID PLAYER DX V1.01 *** ");
+	StrCopy(line, " *** SID PLAYER DX V2 *** ");
 	StrIToA(num, g->nFiles);
 	StrCat(line, num);
 	StrCat(line, g->nFiles == 1 ? " TUNE" : " TUNES");
@@ -1098,6 +1122,58 @@ static void volumeLabel(FormType* frm, UInt8 vol, Boolean draw)
 	if (draw) FrmShowObject(frm, FrmGetObjectIndex(frm, SetVolumeLabel));
 }
 
+/* The Filter row with the cRSID engine: it has its own filter, so the row shows Original, greyed
+   out.  The real buttons are hidden (they keep libsidplay's choice and take no taps) and grey ones
+   are drawn in their place; choosing libsidplay again shows the real ones, as they were.
+   (Palm OS push buttons have no greyed-out look of their own.) */
+static void drawGreyPush(FormType* frm, UInt16 id, const char* text, Boolean selected)
+{
+	RectangleType r, f;
+	RGBColorType grey = { 0, 0x99, 0x99, 0x99 };
+	IndexedColorType gi = WinRGBToIndex(&grey), bg = UIColorGetTableEntryIndex(UIFormFill);
+	Int16 len = (Int16)StrLen(text), w;
+	FrmGetObjectBounds(frm, FrmGetObjectIndex(frm, id), &r);
+	WinPushDrawState();
+	FntSetFont(stdFont);
+	w = FntCharsWidth(text, len);
+	f = r;
+	f.topLeft.x -= 1; f.topLeft.y -= 1; f.extent.x += 2; f.extent.y += 2;
+	WinEraseRectangle(&f, 0);
+	WinSetForeColor(gi);
+	WinDrawRectangleFrame(rectangleFrame, &r);
+	if (selected) WinDrawRectangle(&r, 0);
+	WinSetTextColor(selected ? bg : gi);
+	WinSetBackColor(selected ? gi : bg);
+	WinDrawChars(text, len, r.topLeft.x + (r.extent.x - w) / 2,
+	             r.topLeft.y + (r.extent.y - FntLineHeight()) / 2);
+	WinPopDrawState();
+}
+
+static void filterRow(FormType* frm, Boolean crsid, Boolean drawn)
+{
+	UInt16 io = FrmGetObjectIndex(frm, SetFilterOrig), ib = FrmGetObjectIndex(frm, SetFilterBright);
+	if (crsid) {
+		FrmHideObject(frm, io);
+		FrmHideObject(frm, ib);
+		if (drawn) {
+			drawGreyPush(frm, SetFilterOrig, "Original", true);
+			drawGreyPush(frm, SetFilterBright, "Bright", false);
+		}
+	} else {
+		if (drawn) {                           /* (clear the grey ones, frames included) */
+			RectangleType r;
+			UInt16 k, ids[2] = { SetFilterOrig, SetFilterBright };
+			for (k = 0; k < 2; k++) {
+				FrmGetObjectBounds(frm, FrmGetObjectIndex(frm, ids[k]), &r);
+				r.topLeft.x -= 1; r.topLeft.y -= 1; r.extent.x += 2; r.extent.y += 2;
+				WinEraseRectangle(&r, 0);
+			}
+		}
+		FrmShowObject(frm, io);
+		FrmShowObject(frm, ib);
+	}
+}
+
 /* The Settings box, with its own loop like the About box.  Returns true if the settings changed
    (they are then saved and applied).  The volume changes as the slider moves (Cancel puts it back);
    on its own it's saved without restarting the song. */
@@ -1105,20 +1181,24 @@ static Boolean showSettings(Globals* g)
 {
 	FormType* prev = FrmGetActiveForm();
 	FormType* frm = FrmInitForm(SettingsForm);
-	ControlType* filter = (ControlType*)FrmGetObjectPtr(frm, FrmGetObjectIndex(frm, SetFilterCheck));
 	ControlType* slider = (ControlType*)FrmGetObjectPtr(frm, FrmGetObjectIndex(frm, SetVolumeSlider));
 	SidPrefs p = g->prefs;
 	EventType e;
 	UInt16 pressed = 0, id;
 	UInt8 vol = p.volume;
+	Boolean crsid;
 
-	FrmSetControlGroupSelection(frm, 1, p.chip6581 ? SetModel6581 : SetModel8580);
+	FrmSetControlGroupSelection(frm, 1, p.chip == 1 ? SetModel6581 : p.chip == 0 ? SetModel8580 : SetModelAuto);
 	FrmSetControlGroupSelection(frm, 2, p.clock == 1 ? SetClockPAL : p.clock == 2 ? SetClockNTSC : SetClockAuto);
-	CtlSetValue(filter, p.filter);
+	FrmSetControlGroupSelection(frm, 3, p.curve ? SetFilterBright : SetFilterOrig);
+	FrmSetControlGroupSelection(frm, 4, p.engine == 2 ? SetEngineCRSID : SetEngineLib);
 	CtlSetValue(slider, vol);
 	volumeLabel(frm, vol, false);
+	crsid = p.engine == 2;
+	filterRow(frm, crsid, false);
 	FrmSetActiveForm(frm);
 	FrmDrawForm(frm);
+	if (crsid) filterRow(frm, true, true);
 	while (!pressed) {
 		if (g->playing && g->simulator) simFillRing(g);
 		keepAwake(g);
@@ -1137,6 +1217,14 @@ static Boolean showSettings(Globals* g)
 				if (g->coreReady) setVolume(g, vol);
 			}
 		}
+		else if (e.eType == ctlSelectEvent &&
+		         (e.data.ctlSelect.controlID == SetEngineLib || e.data.ctlSelect.controlID == SetEngineCRSID)) {
+			FrmHandleEvent(frm, &e);
+			if ((e.data.ctlSelect.controlID == SetEngineCRSID) != crsid) {
+				crsid = !crsid;
+				filterRow(frm, crsid, true);
+			}
+		}
 		else if (e.eType == appStopEvent) {
 			EvtAddEventToQueue(&e);              /* leave the app: let the main loop see it too */
 			pressed = SetCancelButton;
@@ -1144,10 +1232,14 @@ static Boolean showSettings(Globals* g)
 			FrmHandleEvent(frm, &e);
 	}
 	if (pressed == SetOKButton) {
-		p.chip6581 = groupChoice(frm, 1) == SetModel6581;
+		id = groupChoice(frm, 1);
+		p.chip = id == SetModel6581 ? 1 : id == SetModel8580 ? 0 : CHIP_AUTO;
 		id = groupChoice(frm, 2);
 		p.clock = id == SetClockPAL ? 1 : id == SetClockNTSC ? 2 : 0;
-		p.filter = CtlGetValue(filter) ? 1 : 0;
+		p.filter = 1;
+		p.curve = groupChoice(frm, 3) == SetFilterBright;   /* (libsidplay's; kept while cRSID is chosen) */
+		id = groupChoice(frm, 4);
+		p.engine = id == SetEngineCRSID ? 2 : 0;
 		p.volume = vol;
 	}
 	FrmEraseForm(frm);
@@ -1158,7 +1250,8 @@ static Boolean showSettings(Globals* g)
 			setVolume(g, g->prefs.volume);   /* (Cancel: as it was) */
 		return false;
 	}
-	if (p.chip6581 == g->prefs.chip6581 && p.filter == g->prefs.filter && p.clock == g->prefs.clock) {
+	if (p.chip == g->prefs.chip && p.filter == g->prefs.filter && p.clock == g->prefs.clock &&
+	    p.curve == g->prefs.curve && p.engine == g->prefs.engine) {
 		if (p.volume != g->prefs.volume) {   /* (only the volume: already playing at it) */
 			g->prefs.volume = p.volume;
 			savePrefs(g);

@@ -7,6 +7,8 @@
 //   -r HZ      sample rate (default 44100)
 //   -6581      6581 waveforms (default 8580, as in the user's SIDPLAY/w)
 //   -nofilter  filter off
+//   -bright    the Bright filter curve (reSIDfp's cutoff curve for the chip in use)
+//   -resid     reSID 0.16 makes the sound (src/core/residengine.cpp; the core build only)
 //   -pal/-ntsc force the clock (default: the tune's own clock, PAL if unknown)
 //   -info      print the tune's details and stop
 //   -tables F  (test aid) write the filter tables to file F and stop
@@ -17,6 +19,9 @@
 #include <cstring>
 #include <vector>
 #include "player.h"
+#if defined(SIDPLAYER_RESID)
+#include "residengine.h"
+#endif
 
 static void put16(FILE* f, unsigned v) { fputc(v & 255, f); fputc((v >> 8) & 255, f); }
 static void put32(FILE* f, unsigned long v) { put16(f, v & 0xffff); put16(f, (v >> 16) & 0xffff); }
@@ -32,13 +37,13 @@ static void wavHeader(FILE* f, unsigned rate, unsigned long dataBytes)
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        fprintf(stderr, "usage: sid2wav in.sid [out.wav] [-s N] [-t SEC] [-r HZ] [-6581] [-nofilter] [-pal|-ntsc] [-info]\n");
+        fprintf(stderr, "usage: sid2wav in.sid [out.wav] [-s N] [-t SEC] [-r HZ] [-6581] [-nofilter] [-bright] [-resid] [-pal|-ntsc] [-info]\n");
         return 2;
     }
     const char* in = argv[1];
     const char* out = 0;
     int song = 0, seconds = 120, rate = 44100, clock = 0;
-    bool m6581 = false, filter = true, infoOnly = false;
+    bool m6581 = false, filter = true, infoOnly = false, bright = false, resid = false;
     const char* tablesFile = 0;
     const char* regsFile = 0;
     for (int i = 2; i < argc; i++) {
@@ -48,6 +53,8 @@ int main(int argc, char** argv)
         else if (!strcmp(a, "-r") && i + 1 < argc) rate = atoi(argv[++i]);
         else if (!strcmp(a, "-6581")) m6581 = true;
         else if (!strcmp(a, "-nofilter")) filter = false;
+        else if (!strcmp(a, "-bright")) bright = true;
+        else if (!strcmp(a, "-resid")) resid = true;
         else if (!strcmp(a, "-pal")) clock = SIDTUNE_CLOCK_PAL;
         else if (!strcmp(a, "-ntsc")) clock = SIDTUNE_CLOCK_NTSC;
         else if (!strcmp(a, "-info")) infoOnly = true;
@@ -72,6 +79,11 @@ int main(int argc, char** argv)
     if (clock) { cfg.clockSpeed = clock; cfg.forceSongSpeed = true; }
     else { cfg.clockSpeed = SIDTUNE_CLOCK_PAL; cfg.forceSongSpeed = false; }
     if (!engine.setConfig(cfg)) { fprintf(stderr, "bad engine settings\n"); return 1; }
+#if defined(SIDPLAYER_HAS_BRIGHT)
+    if (bright) engine.setBrightFilterTable(cfg.mos8580);
+#else
+    if (bright) { fprintf(stderr, "-bright: not in this build\n"); return 2; }
+#endif
 
     sidTune tune(in);
     sidTuneInfo info;
@@ -93,11 +105,19 @@ int main(int argc, char** argv)
     }
     if (!out) { fprintf(stderr, "no output file\n"); return 2; }
 
+#if defined(SIDPLAYER_RESID)
+    if (resid && !residEnable(true)) { fprintf(stderr, "reSID: out of memory\n"); return 1; }
+#else
+    if (resid) { fprintf(stderr, "-resid: not in this build\n"); return 2; }
+#endif
     if (!sidEmuInitializeSong(engine, tune, (uword)song)) {
         tune.getInfo(info);
         fprintf(stderr, "song init failed: %s\n", info.statusString);
         return 1;
     }
+#if defined(SIDPLAYER_RESID)
+    if (resid) residSongStart(cfg.mos8580, filter, bright, (unsigned long)rate);
+#endif
 
     FILE* f = fopen(out, "wb");
     if (!f) { perror(out); return 1; }

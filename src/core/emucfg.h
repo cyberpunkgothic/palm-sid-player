@@ -259,6 +259,12 @@ class emuEngine
 	
 	// Reset the filter parameters to default settings.
 	void setDefaultFilterStrength();
+
+	// sid-player: replace the low-pass table with the "Bright" curve (reSIDfp's measured cutoff
+	// curve for the 6581 or the 8580, brighttables.h).  Undo with setDefaultFilterStrength().
+	// Call after setConfig (a change of sample rate rebuilds the default table).
+	void setBrightFilterTable(bool mos8580);
+#define SIDPLAYER_HAS_BRIGHT 1   /* (tools built against the unchanged libsidplay check this) */
 		
 	// This will even work during playback, but only in volume control modes
 	// SIDEMU_VOLCONTROL, SIDEMU_FULLPANNING or SIDEMU_STEREOSURROUND. For the

@@ -39,7 +39,7 @@ cl /nologo /O2 /EHsc /W1 /wd4838 /LD /DSIDCORE_DLL /D_CRT_SECURE_NO_WARNINGS /D_
    /Isrc\blob\config /I%SRC% /Isrc\blob ^
    src\blob\sidcore.cpp %SRC%\6510_.cpp %SRC%\6581_.cpp %SRC%\eeconfig.cpp %SRC%\envelope.cpp ^
    %SRC%\fformat_.cpp %SRC%\mixing.cpp %SRC%\mus_.cpp %SRC%\player.cpp %SRC%\psid_.cpp ^
-   %SRC%\samples.cpp %SRC%\sidtune.cpp ^
+   %SRC%\samples.cpp %SRC%\sidtune.cpp %SRC%\crsidstub.c ^
    /Fobuild\pc\dll\ /Febuild\pc\sidcore.dll > build\pc\sidcore.log 2>&1
 if errorlevel 1 (type build\pc\sidcore.log & exit /b 1)
 set "SIM=%LOCALAPPDATA%\Programs\PalmDev\simulators\Palm TX"

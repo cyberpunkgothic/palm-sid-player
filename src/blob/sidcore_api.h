@@ -28,11 +28,17 @@ enum {
 	SC_INIT = 1,      /* a0 = arena, a1 = arena size, a2 = random seed (e.g. the time).
 	                     Returns a0 = the native stream callback for SndStreamCreate(..., armNative
 	                     = true): it plays the started song, or silence                   -> 0 ok */
-	SC_CONFIG = 2,    /* a0 = sample rate, a1 = 1 for 6581 waveforms (else 8580),
-	                     a2 = 1 filter on, a3 = clock: 0 the tune's own, 1 PAL, 2 NTSC       -> 0 ok */
+	SC_CONFIG = 2,    /* a0 = sample rate, a1 = chip: 0 8580, 1 6581, 2 auto (the tune's own,
+	                     8580 if it doesn't say; settled at SC_START), a2 = 1 filter on,
+	                     a3 = clock: 0 the tune's own, 1 PAL, 2 NTSC,
+	                     a4 = filter curve: 0 libsidplay's own, 1 Bright (reSIDfp's cutoff
+	                     curve for the chip in use), a5 = engine: 0 libsidplay 1, 2 cRSID
+	                     (its own C64; also plays RSID tunes, which libsidplay 1 can't load,
+	                     whichever engine is chosen).  (1 was reSID: libsidplay now) -> 0 ok */
 	SC_LOAD = 3,      /* a0 = PSID file data, a1 = its length.  Fills a0..a4 with songs, start song,
 	                     clock, SID model, load status; str[0..2] = name, author, copyright  -> 0 ok */
-	SC_START = 4,     /* a0 = subtune (0 = the tune's start song); returns a0 = the song    -> 0 ok */
+	SC_START = 4,     /* a0 = subtune (0 = the tune's start song); returns a0 = the song,
+	                     a1 = the chip in use (1 = 6581, 0 = 8580)                          -> 0 ok */
 	SC_FILL = 5,      /* a0 = buffer, a1 = length in bytes (16-bit signed mono samples)    -> 0 ok
 	                     (for tests; the player uses the stream callback instead).  Stop the
 	                     stream before SC_LOAD, SC_START, SC_CONFIG and SC_SHUTDOWN. */
