@@ -2,7 +2,11 @@
 
 **Status 2026-11-15: VERSION 2 RELEASED** ("V2", in the C64's own style; 1.0 and 1.01 on 2026-11-13),
 https://github.com/cyberpunkgothic/palm-sid-player (public; releases v1.0, v1.01 and v2 have both .prc
-files).  V2: the cRSID engine and RSID tunes, the Bright filter curve, Auto chip (below).  Tested on the real Palm TX (tests/TX_CHECKLIST.md: all
+files).  V2: the cRSID engine and RSID tunes, the Bright filter curve, Auto chip (below).
+Releases: GitHub lists 1.0 above 1.01 (both published 2026-11-13).  Re-tagging v1.0 as an annotated tag
+with its date (2026-11-15; it had been a lightweight tag) didn't change that; "v1.01" isn't valid
+semver (a leading zero), which may be why.  V2 is Latest.  Release tags from now on: annotated, no
+leading zeros, published with --latest.  Tested on the real Palm TX (tests/TX_CHECKLIST.md: all
 passed; Speed Test under 20% with the filter on, under 10% off), the TX simulator, and CloudpilotEmu
 (Tungsten E2, E3v2, deNVFS E2, rePalm; an OS 4 m515 refuses politely).  The device fixes on the way
 are under "Device compatibility" below.  The repository leaves out the user's tunes (tests/tunes/user,
@@ -352,3 +356,9 @@ not an imitation.  Match libsidplay 1.36's GPL version and keep its notices.
 Tunes from the user's own collection, in tests/tunes/user: they aren't ours to publish, so they
 stay out of the repository.  tests/test_render.py skips any that are missing, and reads extra local
 cases from tests/tunes/user/local_cases.json if it's there.
+2026-11-15: the game tunes were replaced by the user's current copies, the HVSC versions (the earlier
+copies are kept locally, outside the tests).  Their checksums didn't change: the HVSC files differ only
+in header text and flags over the test's length.  The same day `test_render.py --golden` was found to
+write the local cases into tests/golden.json ("x and local or golden" is golden while local is still an
+empty dict); fixed with a conditional expression.  Before committing tests/golden.json, check that it
+holds only the CASES in the script.
